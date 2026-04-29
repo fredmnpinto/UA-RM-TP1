@@ -10,6 +10,23 @@
   - `TRI_129466.txt` - Triangulation results
   - `OMNI_129466.txt` - Omnidirectional robot results
 
+## Project Files
+
+### Main Function
+- `rm1_129466.m` - Main entry point with parameters (N, Dt, r, L, Vn, Wn, V)
+
+### Trajectory Planning
+- `planTrajectory.m` - Generates random multi-waypoint trajectory (independent of beacons)
+- Uses linear interpolation with Delta_d = Dt * V * 0.5 for smooth animation
+
+### Beacon Simulation
+- `BeaconDetection.m` - Mock function generating random beacon positions (2-25m, first quadrant)
+- `BeaconVisualization.m` - Class handling beacon detection lines and distance labels
+
+### Visualization
+- `DrawRobot.m` - Draws robot shape (types: 1=DD, 2=tricycle, 3=omni)
+- `BeaconVisualization` class - Manages detection lines (red dashed) and distance labels
+
 ## Documentation Location
 
 **IMPORTANT**: The Peter Corke Robotics Toolbox documentation is located locally in:
@@ -17,6 +34,11 @@
 - **Size**: ~400KB (large file)
 
 This file contains the complete reference documentation converted from the original PDF.
+
+## MATLAB Documentation
+When verifying MATLAB functions, also consult:
+- **MATLAB Online**: https://www.mathworks.com/help/matlab/index.html
+- Use this for standard MATLAB functions (plot, pchip, atan2, etc.)
 
 ## How to Look Up Functions
 
@@ -67,6 +89,14 @@ Read: peter_corke_toolbox.md from line X (reading ~100 lines)
 | Dstar | 2373 | D* dynamic path planning |
 | Bug2 | 2057 | Bug2 path planning |
 
+### Project Functions
+| Function | Type | Description |
+|----------|------|-------------|
+| planTrajectory | Function | Random trajectory with 2-3 waypoints |
+| BeaconDetection | Function | Mock beacon generator (random positions) |
+| BeaconVisualization | Class | Manages beacon detection visualization |
+| DrawRobot | Function | Draws robot shape (provided) |
+
 ## Usage Pattern
 
 When you need to use a RTB function:
@@ -91,3 +121,28 @@ bicycle = Bicycle(V, L);  % max linear velocity, wheelbase
 - Headers are formatted as `## FunctionName.ClassName` for class methods
 - Each function has usage examples in the documentation
 - Take notes with a grain of salt - this is converted documentation
+
+## MATLAB Animation Pattern
+
+For animating graphics, use:
+```matlab
+% Create graphics object
+hRobot = scatter(x, y, 100, 'y', 'filled');
+
+% OR for DrawRobot with hgtransform:
+hg = hgtransform;
+[P, h] = DrawRobot(1, 0.01);
+set(h, 'Parent', hg);
+
+% Animate
+for i = 1:size(trajectory, 1)
+    % Update position
+    T = makehgtform('translate', [x, y, 0], 'zrotate', theta);
+    hg.Matrix = T;  % NOT 'Transform' - use 'Matrix' property
+    
+    drawnow limitrate;
+    pause(0.1);  % Optional: slow down
+end
+```
+
+**Important**: hgtransform uses `.Matrix` property, NOT `.Transform`!
