@@ -30,39 +30,14 @@ end
 dn = obsNoise(1);  % distance noise sigma
 an = obsNoise(2); % angle noise sigma
 
-% Generate beacon positions in rectangular arrangement
-% (based on typical lab environment from assignment figure)
-switch N
-    case 1
-        % Single beacon at corner
-        beacons = [5, 5];
-    case 2
-        % Two beacons
-        beacons = [5, 5; 5, -5];
-    case 3
-        % Three beacons (corner triangle)
-        beacons = [5, 5; 5, -5; -5, -5];
-    case 4
-        % Four beacons (rectangle)
-        beacons = [5, 5; 5, -5; -5, -5; -5, 5];
-    case 5
-        % Five beacons (rectangle + center)
-        beacons = [5, 5; 5, -5; -5, -5; -5, 5; 0, 0];
-    case 6
-        % Six beacons (two rows of 3)
-        beacons = [5, 5; 5, 0; 5, -5; -5, 5; -5, 0; -5, -5];
-    otherwise
-        % For N > 6, create multiple rows
-        nPerRow = ceil(sqrt(N));
-        beacons = [];
-        for i = 1:nPerRow
-            for j = 1:nPerRow
-                if size(beacons,1) < N
-                    beacons = [beacons; 5*(j-1)/(nPerRow-1+eps)*2 - 5, 5*(i-1)/(nPerRow-1+eps)*2 - 5];
-                end
-            end
-        end
-        beacons = beacons(1:N,:);
+% Generate random beacon positions in first quadrant (2-25m range)
+rng('shuffle');  % Different each run
+
+beacons = zeros(N, 2);
+for i = 1:N
+    % Random position in first quadrant
+    beacons(i, 1) = 2 + rand() * 23;  % x: 2-25m
+    beacons(i, 2) = 2 + rand() * 23;  % y: 2-25m
 end
 
 % Initialize output structure
