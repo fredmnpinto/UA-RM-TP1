@@ -69,7 +69,7 @@ function trajectory = planTrajectory(N, Dt, V)
 
     % ============ T003: LINEAR INTERPOLATION ============
     % Generate trajectory by interpolating through all waypoints
-    Delta_d = Dt * V;
+    Delta_d = Dt * V * 0.5;  % Half the distance = 2x more points for smoother animation
     trajectory = [];
     
     allPoints = [startPoint; waypoints; destPoint];
