@@ -39,81 +39,75 @@ function trajectory = planTrajectory(N, Dt, V)
     beacons = B.beacons;  % Nx2 matrix [x, y] positions
 
     % ============ T002: TRAJECTORY DEFINITION ============
-    % Robot starts at origin and goes to a destination
-    % The destination is chosen to be past the last beacon (extending the path)
-    % This simulates the robot traversing through the environment
+    % Random waypoints - COMPLETELY INDEPENDENT of beacons
     
-    startPoint = [0, 0];
+    rng('shuffle');
     
-    % Find the "center of mass" of beacons to determine general direction
-    beaconCenter = mean(beacons, 1);
+    % Random start point (in first quadrant, within 5m of origin)
+    startX = rand() * 5;
+    startY = rand() * 5;
+    startPoint = [startX, startY];
     
-    % Destination: extend beyond the last beacon in the direction of travel
-    % The robot travels in a straight line through the beacon field
-    % Choose destination such that the path goes "through" the beacons area
+    % Generate 2-3 random intermediate waypoints
+    numWaypoints = 2 + floor(rand() * 2);  % 2 or 3 waypoints
     
-    % For simplicity, let's define destination as past the furthest beacon
-    % in the direction away from origin
-    maxDist = 0;
-    destPoint = startPoint;
-    
-    % Calculate destination as extending beyond all beacons
-    % Find direction that passes through the beacon cluster
-    for i = 1:size(beacons, 1)
-        % Check if this beacon is "beyond" current destination in terms of distance from origin
-        distFromOrigin = norm(beacons(i, :));
-        if distFromOrigin > maxDist
-            maxDist = distFromOrigin;
-            % Destination is slightly beyond this beacon
-            direction = beacons(i, :) / norm(beacons(i, :));
-            destPoint = beacons(i, :) + direction * 5; % Go 5m beyond
-        end
+    waypoints = zeros(numWaypoints, 2);
+    for i = 1:numWaypoints
+        waypoints(i, 1) = 2 + rand() * 18;  % x: 2-20m
+        waypoints(i, 2) = 2 + rand() * 18;  % y: 2-20m
     end
     
-    % If beacons are all at origin or very close, use default destination
-    if maxDist < 1
-        destPoint = [10, 10];  % Default diagonal path
-    end
+    % Random final destination (past the last waypoint)
+    lastWaypoint = waypoints(end, :);
+    angle = rand() * 2 * pi;
+    dist = 5 + rand() * 10;
+    destPoint = lastWaypoint + [dist * cos(angle), dist * sin(angle)];
+    
+    % Ensure destination in first quadrant
+    if destPoint(1) < 2, destPoint(1) = lastWaypoint(1) + 5; end
+    if destPoint(2) < 2, destPoint(2) = lastWaypoint(2) + 5; end
 
     % ============ T003: LINEAR INTERPOLATION ============
-    % Use linear interpolation (not pchip) for straight-line path
-    Delta_d = Dt * V;  % Distance between consecutive points
-    
-    % Calculate total distance
-    dx_total = destPoint(1) - startPoint(1);
-    dy_total = destPoint(2) - startPoint(2);
-    totalDistance = sqrt(dx_total^2 + dy_total^2);
-    
-    % Number of intermediate points
-    nPoints = max(1, floor(totalDistance / Delta_d));
-    
-    % Generate linearly spaced points
-    t_vals = linspace(0, 1, nPoints + 1);
-    
-    x_pts = startPoint(1) + t_vals * dx_total;
-    y_pts = startPoint(2) + t_vals * dy_total;
-
-    % ============ T004: HEADING CALCULATION ============
+    % Generate trajectory by interpolating through all waypoints
+    Delta_d = Dt * V;
     trajectory = [];
-    for i = 1:length(x_pts)
-        if i < length(x_pts)
-            % Heading points toward next point
-            theta = atan2(y_pts(i+1) - y_pts(i), x_pts(i+1) - x_pts(i));
-        else
-            % Last point: compute heading from previous segment
-            theta = atan2(y_pts(i) - y_pts(i-1), x_pts(i) - x_pts(i-1));
+    
+    allPoints = [startPoint; waypoints; destPoint];
+    
+    for seg = 1:size(allPoints, 1) - 1
+        p1 = allPoints(seg, :);
+        p2 = allPoints(seg + 1, :);
+        
+        segDist = sqrt((p2(1)-p1(1))^2 + (p2(2)-p1(2))^2);
+        nPoints = max(1, floor(segDist / Delta_d));
+        
+        t_vals = linspace(0, 1, nPoints + 1);
+        x_seg = p1(1) + t_vals * (p2(1) - p1(1));
+        y_seg = p1(2) + t_vals * (p2(2) - p1(2));
+        
+        for i = 1:length(x_seg)
+            if i < length(x_seg)
+                theta = atan2(y_seg(i+1) - y_seg(i), x_seg(i+1) - x_seg(i));
+            else
+                if seg < size(allPoints, 1) - 1
+                    % Get direction to next segment
+                    nextP = allPoints(seg + 2, :);
+                    theta = atan2(nextP(2) - p2(2), nextP(1) - p2(1));
+                else
+                    theta = atan2(y_seg(i) - y_seg(i-1), x_seg(i) - x_seg(i-1));
+                end
+            end
+            trajectory = [trajectory; x_seg(i), y_seg(i), theta];
         end
-        trajectory = [trajectory; x_pts(i), y_pts(i), theta];
     end
 
     % ============ T005: TRAJECTORY ASSEMBLY ============
-    % Ensure start is (0, 0, 0)
-    trajectory(1, :) = [0, 0, 0];
+    % Use the actual start point (now randomized, not forced to origin)
 
     % ============ T006: VALIDATION ============
-    % Check 1: Start at origin
-    if ~isequal(trajectory(1, :), [0, 0, 0])
-        error('Trajectory must start at origin');
+    % Check 1: Start at startPoint (verify x, y only; theta is calculated)
+    if ~isequal(trajectory(1, 1:2), startPoint)
+        error('Trajectory must start at startPoint');
     end
 
     % Check 2: No NaN values
