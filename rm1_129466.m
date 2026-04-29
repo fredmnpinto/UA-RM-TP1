@@ -100,23 +100,26 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
     ylabel('Y (m)');
     title(sprintf('Robot Trajectory - %d Beacons (Straight-line path)', N));
     
-    % Plot beacons as blue squares with labels (FIXED LANDMARKS)
+    % Plot beacons as orange circles with labels (FIXED LANDMARKS)
+    % Plot all beacons at once to create a single graphics object for legend
+    hBeacons = plot(beacons(:, 1), beacons(:, 2), 'o', 'MarkerSize', 12, 'MarkerFaceColor', [1, 0.5, 0], 'MarkerEdgeColor', [1, 0.5, 0], 'LineWidth', 1.5);
     for i = 1:size(beacons, 1)
-        plot(beacons(i, 1), beacons(i, 2), 'bs', 'MarkerSize', 12, 'MarkerFaceColor', 'b', 'MarkerEdgeColor', 'k', 'LineWidth', 2);
-        text(beacons(i, 1) + 0.5, beacons(i, 2) + 0.5, sprintf('B%d', i), 'FontSize', 10, 'FontWeight', 'bold', 'Color', 'b');
+        text(beacons(i,1) + 0.3, beacons(i,2) + 0.3, sprintf('B%d', i), 'FontSize', 8, 'Color', [1, 0.5, 0]);
     end
     
     % Plot trajectory as blue line with dots at each point
-    plot(trajectory(:, 1), trajectory(:, 2), 'b-', 'LineWidth', 2);
-    plot(trajectory(:, 1), trajectory(:, 2), 'b.', 'MarkerSize', 6);
+    % Plot as a single combined plot to create one graphics object
+    hTrajectory = plot(trajectory(:, 1), trajectory(:, 2), 'b-', 'LineWidth', 2);
+    hold on;
+    plot(trajectory(:, 1), trajectory(:, 2), 'b.', 'MarkerSize', 6, 'HandleVisibility', 'off');
     
     % Create hgtransform for robot positioning (allows efficient transform updates)
     hg = hgtransform;
     
     % Draw robot at origin using differential drive - type 1
     robotScale = 0.015;  % Scale factor for visibility
-    [P, h] = DrawRobot(1, robotScale);
-    set(h, 'Parent', hg);  % Parent robot to hgtransform
+    [P, hRobot] = DrawRobot(1, robotScale);
+    set(hRobot, 'Parent', hg);  % Parent robot to hgtransform
     
     % Get start position
     startX = trajectory(1, 1);
@@ -130,13 +133,20 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
     % Create beacon visualization object
     beaconVis = BeaconVisualization(beacons, gca);
     
-    % Add legend for visualization elements
-    legend('Beacons', 'Trajectory', 'Robot', 'Detection Lines', 'Location', 'best');
+    % Create a sample detection line for legend (matching BeaconVisualization style)
+    hDetection = plot(NaN, NaN, 'r--', 'LineWidth', 1);
+    
+    % Add legend for visualization elements using explicit handles
+    legend([hBeacons, hTrajectory, hRobot, hDetection], ...
+          {'Beacons', 'Trajectory', 'Robot', 'Detection Lines'}, ...
+          'Location', 'best');
     
     % Animate robot moving along trajectory
     fprintf('  Animating robot along trajectory...\n');
     fprintf('  Showing detection lines from robot to beacons...\n');
     
+    pause
+
     % Animate along trajectory - one frame per trajectory point
     for i = 1:size(trajectory, 1)
         % Get current position from trajectory
@@ -153,7 +163,7 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
         
         % Use proper MATLAB animation: drawnow limitrate instead of pause
         drawnow limitrate;
-        pause(2);  % Small pause to make animation visible
+        pause(0.05);  % Small pause to make animation visible
     end
     
     fprintf('  Visualization complete.\n');
