@@ -63,7 +63,7 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
     fprintf('  N = %d beacons, Dt = %.2f s, V = %.2f m/s\n', N, Dt, V);
     
     % Call planTrajectory function
-    trajectory = planTrajectory(N, Dt, V);
+    trajectory = planTrajectory(N, Dt, V, 10);
     
     fprintf('  Generated %d trajectory points\n', size(trajectory, 1));
 
@@ -89,7 +89,12 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
     
     % Get beacon positions (fixed landmarks in environment)
     B = BeaconDetection(N);
-    beacons = B.beacons;
+    
+    % Collect beacon X and Y coordinates from struct array
+    % B.X returns a comma-separated list, so we use [B.X] to collect into vector
+    X_vec = [B.X];  % Row vector of all X coordinates
+    Y_vec = [B.Y];  % Row vector of all Y coordinates
+    beacons = [X_vec(:), Y_vec(:)];  % Nx2 matrix [x, y]
     
     % Create figure for visualization
     figure('Name', 'Robot Trajectory with Beacon Detection', 'NumberTitle', 'off');
@@ -178,4 +183,68 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
     assignin('base', 'rm1_Wn', Wn);
     assignin('base', 'rm1_V', V);
     assignin('base', 'rm1_trajectory', trajectory);
+
+
+    fprintf('\nProceed to phase 2?\nPress ENTER\n\n')
+    pause
+
+    % ============ PHASE 2: EKF LOCALIZATION ============
+    fprintf('\n==============================================\n');
+    fprintf('Phase 2: EKF Localization\n');
+    fprintf('==============================================\n');
+    
+    fprintf('Running EKF localization with %d beacons...\n', N);
+    fprintf('  Vn = %.3f m/s, Wn = %.3f rad/s\n', Vn, Wn);
+    fprintf('  V = %.2f m/s\n', V);
+    
+    % Run EKF localization
+    [estimated_trajectory, P_history] = ekfLocalization(trajectory, N, Dt, Vn, Wn, V);
+    
+    % Save results to loc_129466.txt
+    saveLocalizationResults(estimated_trajectory, 'loc_129466.txt');
+    
+    % Display summary
+    fprintf('\nLocalization Results:\n');
+    fprintf('  Estimated trajectory: %d points\n', size(estimated_trajectory, 1));
+    fprintf('  First point: [%.6f, %.6f, %.6f]\n', estimated_trajectory(1, :));
+    fprintf('  Last point:  [%.6f, %.6f, %.6f]\n', estimated_trajectory(end, :));
+    
+    % Calculate and display error statistics
+    position_error = sqrt((trajectory(:,1) - estimated_trajectory(:,1)).^2 + ...
+                         (trajectory(:,2) - estimated_trajectory(:,2)).^2);
+    fprintf('\nError Statistics:\n');
+    fprintf('  Mean position error: %.4f m\n', mean(position_error));
+    fprintf('  Max position error:  %.4f m\n', max(position_error));
+    
+    % Plot ground truth vs estimate
+    figure('Name', 'EKF Localization Results', 'NumberTitle', 'off');
+    hold on;
+    grid on;
+    axis equal;
+    xlabel('X (m)');
+    ylabel('Y (m)');
+    title(sprintf('EKF Localization - %d Beacons', N));
+    
+    % Plot ground truth
+    plot(trajectory(:, 1), trajectory(:, 2), 'b-', 'LineWidth', 2);
+    
+    % Plot EKF estimate
+    plot(estimated_trajectory(:, 1), estimated_trajectory(:, 2), 'r--', 'LineWidth', 2);
+    
+    % Plot beacons
+    plot(beacons(:, 1), beacons(:, 2), 'o', 'MarkerSize', 12, ...
+         'MarkerFaceColor', [1, 0.5, 0], 'MarkerEdgeColor', [1, 0.5, 0], 'LineWidth', 1.5);
+    
+    legend('Ground Truth', 'EKF Estimate', 'Beacons', 'Location', 'best');
+    
+    % Plot start and end points
+    plot(trajectory(1,1), trajectory(1,2), 'bo', 'MarkerSize', 10, 'MarkerFaceColor', 'b');
+    plot(estimated_trajectory(1,1), estimated_trajectory(1,2), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
+    plot(trajectory(end,1), trajectory(end,2), 'bs', 'MarkerSize', 10, 'MarkerFaceColor', 'b');
+    plot(estimated_trajectory(end,1), estimated_trajectory(end,2), 'rs', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
+    
+    % Add legend for start/end
+    legend('Ground Truth', 'EKF Estimate', 'Beacons', ...
+           'Start (Truth)', 'Start (EKF)', 'End (Truth)', 'End (EKF)', ...
+           'Location', 'best');
 end

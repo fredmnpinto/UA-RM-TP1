@@ -1,10 +1,11 @@
-function trajectory = planTrajectory(N, Dt, V)
+function trajectory = planTrajectory(N, Dt, V, scale)
 %PLAN Trajectory - Generate straight-line trajectory from origin to destination
 %
 % Parameters:
 %   N  - Number of beacons (default: 4)
 %   Dt - Sensor sampling time interval in seconds (default: 1)
 %   V  - Desired linear velocity in m/s (default: 5)
+%   scale - Trajectory scale multiplier (default: 1)
 %
 % Output:
 %   trajectory - Mx3 matrix [x, y, theta] for each point
@@ -16,6 +17,7 @@ function trajectory = planTrajectory(N, Dt, V)
     if nargin < 1, N = 4; end
     if nargin < 2, Dt = 1; end
     if nargin < 3, V = 5; end
+    if nargin < 4, scale = 1; end
 
     % ====== INPUT VALIDATION ======
     % Validate N (number of beacons)
@@ -33,10 +35,20 @@ function trajectory = planTrajectory(N, Dt, V)
         error('V must be a positive scalar (desired linear velocity in m/s)');
     end
 
+    % Validate scale
+    if ~isscalar(scale) || ~isnumeric(scale) || V <= 0
+        error('scale must be a positive scalar (desired linear velocity in m/s)');
+    end
+
     % ============ T001: BEACON ACQUISITION ============
     % Get beacon positions (they are fixed landmarks in the environment)
     B = BeaconDetection(N);
-    beacons = B.beacons;  % Nx2 matrix [x, y] positions
+    
+    % Collect beacon X and Y coordinates from struct array
+    % B.X returns a comma-separated list, so we use [B.X] to collect into vector
+    X_vec = [B.X];  % Row vector of all X coordinates
+    Y_vec = [B.Y];  % Row vector of all Y coordinates
+    beacons = [X_vec(:), Y_vec(:)];  % Nx2 matrix [x, y]
 
     % ============ T002: TRAJECTORY DEFINITION ============
     % Random waypoints - COMPLETELY INDEPENDENT of beacons
@@ -44,8 +56,8 @@ function trajectory = planTrajectory(N, Dt, V)
     rng('shuffle');
     
     % Random start point (in first quadrant, within 5m of origin)
-    startX = rand() * 5;
-    startY = rand() * 5;
+    startX = rand() * 5 * scale;
+    startY = rand() * 5 * scale;
     startPoint = [startX, startY];
     
     % Generate 2-3 random intermediate waypoints
@@ -53,8 +65,8 @@ function trajectory = planTrajectory(N, Dt, V)
     
     waypoints = zeros(numWaypoints, 2);
     for i = 1:numWaypoints
-        waypoints(i, 1) = 2 + rand() * 18;  % x: 2-20m
-        waypoints(i, 2) = 2 + rand() * 18;  % y: 2-20m
+        waypoints(i, 1) = (2 + rand() * 18) * scale;  % x: 2-20m
+        waypoints(i, 2) = (2 + rand() * 18) * scale;  % y: 2-20m
     end
     
     % Random final destination (past the last waypoint)
