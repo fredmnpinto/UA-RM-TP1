@@ -1,8 +1,7 @@
-function trajectory = planTrajectory(N, Dt, V, scale)
+function trajectory = planTrajectory(Dt, V, scale)
 %PLAN Trajectory - Generate straight-line trajectory from origin to destination
 %
 % Parameters:
-%   N  - Number of beacons (default: 4)
 %   Dt - Sensor sampling time interval in seconds (default: 1)
 %   V  - Desired linear velocity in m/s (default: 5)
 %   scale - Trajectory scale multiplier (default: 1)
@@ -14,17 +13,11 @@ function trajectory = planTrajectory(N, Dt, V, scale)
 % not TO them. The trajectory is a straight-line path through the environment.
 
     % Set defaults
-    if nargin < 1, N = 4; end
-    if nargin < 2, Dt = 1; end
-    if nargin < 3, V = 5; end
-    if nargin < 4, scale = 1; end
+    if nargin < 1, Dt = 1; end
+    if nargin < 2, V = 5; end
+    if nargin < 3, scale = 1; end
 
     % ====== INPUT VALIDATION ======
-    % Validate N (number of beacons)
-    if ~isscalar(N) || ~isnumeric(N) || N < 1 || N ~= floor(N)
-        error('N must be a positive integer (number of beacons)');
-    end
-    
     % Validate Dt (sampling time interval)
     if ~isscalar(Dt) || ~isnumeric(Dt) || Dt <= 0
         error('Dt must be a positive scalar (sampling time interval in seconds)');
@@ -40,17 +33,6 @@ function trajectory = planTrajectory(N, Dt, V, scale)
         error('scale must be a positive scalar (desired linear velocity in m/s)');
     end
 
-    % ============ T001: BEACON ACQUISITION ============
-    % Get beacon positions (they are fixed landmarks in the environment)
-    B = BeaconDetection(N);
-    
-    % Collect beacon X and Y coordinates from struct array
-    % B.X returns a comma-separated list, so we use [B.X] to collect into vector
-    X_vec = [B.X];  % Row vector of all X coordinates
-    Y_vec = [B.Y];  % Row vector of all Y coordinates
-    beacons = [X_vec(:), Y_vec(:)];  % Nx2 matrix [x, y]
-
-    % ============ T002: TRAJECTORY DEFINITION ============
     % Random waypoints - COMPLETELY INDEPENDENT of beacons
     
     rng('shuffle');
@@ -79,7 +61,7 @@ function trajectory = planTrajectory(N, Dt, V, scale)
     if destPoint(1) < 2, destPoint(1) = lastWaypoint(1) + 5; end
     if destPoint(2) < 2, destPoint(2) = lastWaypoint(2) + 5; end
 
-    % ============ T003: LINEAR INTERPOLATION ============
+    % ============ LINEAR INTERPOLATION ============
     % Generate trajectory by interpolating through all waypoints
     Delta_d = Dt * V * 0.5;  % Half the distance = 2x more points for smoother animation
     trajectory = [];
@@ -113,10 +95,7 @@ function trajectory = planTrajectory(N, Dt, V, scale)
         end
     end
 
-    % ============ T005: TRAJECTORY ASSEMBLY ============
-    % Use the actual start point (now randomized, not forced to origin)
-
-    % ============ T006: VALIDATION ============
+    % ============ FINAL VALIDATION ============
     % Check 1: Start at startPoint (verify x, y only; theta is calculated)
     if ~isequal(trajectory(1, 1:2), startPoint)
         error('Trajectory must start at startPoint');

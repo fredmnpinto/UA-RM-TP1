@@ -60,10 +60,10 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
 
     % ============ PHASE 1: TRAJECTORY PLANNING ============
     fprintf('Phase 1: Generating trajectory\n');
-    fprintf('  N = %d beacons, Dt = %.2f s, V = %.2f m/s\n', N, Dt, V);
+    fprintf('  N = Dt = %.2f s, V = %.2f m/s\n', Dt, V);
     
     % Call planTrajectory function
-    trajectory = planTrajectory(N, Dt, V, 10);
+    trajectory = planTrajectory(Dt, V, 10);
     
     fprintf('  Generated %d trajectory points\n', size(trajectory, 1));
 
