@@ -84,9 +84,7 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
         disp(trajectory(end-4:end, :));
     end
 
-    % ============ VISUALIZATION ============
-    fprintf('\nGenerating visualization...\n');
-    
+    % ============ GET BEACON POSITIONS ============
     % Get beacon positions (fixed landmarks in environment)
     B = BeaconDetection(N);
     
@@ -95,98 +93,6 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
     X_vec = [B.X];  % Row vector of all X coordinates
     Y_vec = [B.Y];  % Row vector of all Y coordinates
     beacons = [X_vec(:), Y_vec(:)];  % Nx2 matrix [x, y]
-    
-    % Create figure for visualization
-    figure('Name', 'Robot Trajectory with Beacon Detection', 'NumberTitle', 'off');
-    hold on;
-    grid on;
-    axis equal;
-    xlabel('X (m)');
-    ylabel('Y (m)');
-    title(sprintf('Robot Trajectory - %d Beacons (Straight-line path)', N));
-    
-    % Plot beacons as orange circles with labels (FIXED LANDMARKS)
-    % Plot all beacons at once to create a single graphics object for legend
-    hBeacons = plot(beacons(:, 1), beacons(:, 2), 'o', 'MarkerSize', 12, 'MarkerFaceColor', [1, 0.5, 0], 'MarkerEdgeColor', [1, 0.5, 0], 'LineWidth', 1.5);
-    for i = 1:size(beacons, 1)
-        text(beacons(i,1) + 0.3, beacons(i,2) + 0.3, sprintf('B%d', i), 'FontSize', 8, 'Color', [1, 0.5, 0]);
-    end
-    
-    % Plot trajectory as blue line with dots at each point
-    % Plot as a single combined plot to create one graphics object
-    hTrajectory = plot(trajectory(:, 1), trajectory(:, 2), 'b-', 'LineWidth', 2);
-    hold on;
-    plot(trajectory(:, 1), trajectory(:, 2), 'b.', 'MarkerSize', 6, 'HandleVisibility', 'off');
-    
-    % Create hgtransform for robot positioning (allows efficient transform updates)
-    hg = hgtransform;
-    
-    % Draw robot at origin using differential drive - type 1
-    robotScale = 0.015;  % Scale factor for visibility
-    [P, hRobot] = DrawRobot(1, robotScale);
-    set(hRobot, 'Parent', hg);  % Parent robot to hgtransform
-    
-    % Get start position
-    startX = trajectory(1, 1);
-    startY = trajectory(1, 2);
-    startTheta = trajectory(1, 3);
-    
-    % Transform robot to start position using hgtransform
-    T_start = makehgtform('translate', [startX, startY, 0], 'zrotate', startTheta);
-    hg.Matrix = T_start;
-    
-    % Create beacon visualization object
-    beaconVis = BeaconVisualization(beacons, gca);
-    
-    % Create a sample detection line for legend (matching BeaconVisualization style)
-    hDetection = plot(NaN, NaN, 'r--', 'LineWidth', 1);
-    
-    % Add legend for visualization elements using explicit handles
-    legend([hBeacons, hTrajectory, hRobot, hDetection], ...
-          {'Beacons', 'Trajectory', 'Robot', 'Detection Lines'}, ...
-          'Location', 'best');
-    
-    % Animate robot moving along trajectory
-    fprintf('  Animating robot along trajectory...\n');
-    fprintf('  Showing detection lines from robot to beacons...\n');
-    
-    pause
-
-    % Animate along trajectory - one frame per trajectory point
-    for i = 1:size(trajectory, 1)
-        % Get current position from trajectory
-        x = trajectory(i, 1);
-        y = trajectory(i, 2);
-        theta = trajectory(i, 3);
-        
-        % Update robot position using hgtransform (translate + rotate)
-        T = makehgtform('translate', [x, y, 0], 'zrotate', theta);
-        hg.Matrix = T;
-        
-        % Update beacon detection visualization
-        beaconVis.update(x, y);
-        
-        % Use proper MATLAB animation: drawnow limitrate instead of pause
-        drawnow limitrate;
-        pause(0.05);  % Small pause to make animation visible
-    end
-    
-    fprintf('  Visualization complete.\n');
-
-    % ============ SAVE PARAMETERS FOR LATER PHASES ============
-    % Store parameters in base workspace for use in Simulation phase
-    assignin('base', 'rm1_N', N);
-    assignin('base', 'rm1_Dt', Dt);
-    assignin('base', 'rm1_r', r);
-    assignin('base', 'rm1_L', L);
-    assignin('base', 'rm1_Vn', Vn);
-    assignin('base', 'rm1_Wn', Wn);
-    assignin('base', 'rm1_V', V);
-    assignin('base', 'rm1_trajectory', trajectory);
-
-
-    fprintf('\nProceed to phase 2?\nPress ENTER\n\n')
-    pause
 
     % ============ PHASE 2: EKF LOCALIZATION ============
     fprintf('\n==============================================\n');
@@ -215,36 +121,132 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
     fprintf('\nError Statistics:\n');
     fprintf('  Mean position error: %.4f m\n', mean(position_error));
     fprintf('  Max position error:  %.4f m\n', max(position_error));
+
+    % ============ MERGED VISUALIZATION ============
+    fprintf('\nGenerating merged visualization...\n');
     
-    % Plot ground truth vs estimate
-    figure('Name', 'EKF Localization Results', 'NumberTitle', 'off');
+    % Create single figure with 2 subplots
+    figure('Position', [100, 100, 1200, 500]);
+    
+    % ========== SUBPLOT 1: Trajectory + Robot + EKF ==========
+    ax1 = subplot(1, 2, 1);
     hold on;
     grid on;
-    axis equal;
+    
+    % Plot beacons (orange circles)
+    hBeacons = plot(beacons(:,1), beacons(:,2), 'o', ...
+        'MarkerSize', 12, 'MarkerFaceColor', [1, 0.5, 0], ...
+        'MarkerEdgeColor', [1, 0.5, 0], 'LineWidth', 1.5);
+    
+    % Plot ground truth trajectory (blue)
+     hGroundTruth = plot(trajectory(:,1), trajectory(:,2), 'b-', 'LineWidth', 2);
+    plot(trajectory(:,1), trajectory(:,2), 'b.', 'MarkerSize', 6, ...
+        'HandleVisibility', 'off');
+    
+    % Plot start point
+    plot(trajectory(1,1), trajectory(1,2), 'go', ...
+        'MarkerSize', 10, 'MarkerFaceColor', 'g');
+    
+    % Plot end point
+    plot(trajectory(end,1), trajectory(end,2), 'ro', ...
+        'MarkerSize', 10, 'MarkerFaceColor', 'r');
+    
+    % Robot visualization (use last position)
+    hg = hgtransform;
+    [P, hRobot] = DrawRobot(1, 0.01);
+    set(hRobot, 'Parent', hg);
+    T = makehgtform('translate', [trajectory(end,1), trajectory(end,2), 0], ...
+        'zrotate', trajectory(end,3));
+    hg.Matrix = T;
+    
+    % Initialize beacon lines (will be updated in animation)
+    % Store handles for updating - initialize with NaN data
+    beaconLineHandles = gobjects(N, 1);
+    for i = 1:N
+        beaconLineHandles(i) = line(ax1, NaN, NaN, ...
+            'Color', [1, 0.5, 0], 'LineStyle', '--', 'LineWidth', 1, ...
+            'HandleVisibility', 'off');
+    end
+    
+    % Create animated line for EKF estimate (progressive drawing)
+    hEKF = animatedline(ax1, 'Color', 'r', 'LineStyle', '--', 'LineWidth', 2, ...
+                       'DisplayName', 'EKF Estimate');
+    
+    % Labels and legend
     xlabel('X (m)');
     ylabel('Y (m)');
-    title(sprintf('EKF Localization - %d Beacons', N));
+    title('Robot Trajectory: Ground Truth (Blue) vs EKF Estimate (Red)');
+    legend([hBeacons, hRobot, hGroundTruth, hEKF], ...
+            {'Beacons', 'Robot', 'Ground Truth', 'EKF Estimate'}, ...
+            'Location', 'best');
+    axis equal;
     
-    % Plot ground truth
-    plot(trajectory(:, 1), trajectory(:, 2), 'b-', 'LineWidth', 2);
+    % ========== SUBPLOT 2: Error Plot ==========
+    ax2 = subplot(1, 2, 2);
+    hold on;
+    grid on;
     
-    % Plot EKF estimate
-    plot(estimated_trajectory(:, 1), estimated_trajectory(:, 2), 'r--', 'LineWidth', 2);
+    % Calculate position error
+    pos_error = sqrt((trajectory(:,1) - estimated_trajectory(:,1)).^2 + ...
+                       (trajectory(:,2) - estimated_trajectory(:,2)).^2);
     
-    % Plot beacons
-    plot(beacons(:, 1), beacons(:, 2), 'o', 'MarkerSize', 12, ...
-         'MarkerFaceColor', [1, 0.5, 0], 'MarkerEdgeColor', [1, 0.5, 0], 'LineWidth', 1.5);
+    % Create animated line for error plot (progressive drawing)
+    hError = animatedline(ax2, 'Color', 'b', 'LineWidth', 2, ...
+                         'DisplayName', 'Position Error');
+    ylabel('Position Error (m)');
+    xlabel('Trajectory Point Index');
+    title('EKF Localization Error');
+    xlim([1, size(trajectory, 1)]);
+    ylim([0, max(pos_error) * 1.1]);
+    legend([hError], {'Position Error'}, 'Location', 'best');
     
-    legend('Ground Truth', 'EKF Estimate', 'Beacons', 'Location', 'best');
+    % ========== ANIMATION: Robot Moving with EKF ==========
+    % Animate robot along trajectory with EKF estimate
+    fprintf('  Animating robot with EKF estimate...\n');
     
-    % Plot start and end points
-    plot(trajectory(1,1), trajectory(1,2), 'bo', 'MarkerSize', 10, 'MarkerFaceColor', 'b');
-    plot(estimated_trajectory(1,1), estimated_trajectory(1,2), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
-    plot(trajectory(end,1), trajectory(end,2), 'bs', 'MarkerSize', 10, 'MarkerFaceColor', 'b');
-    plot(estimated_trajectory(end,1), estimated_trajectory(end,2), 'rs', 'MarkerSize', 10, 'MarkerFaceColor', 'r');
+    for i = 1:size(trajectory, 1)
+        % Update robot position (ground truth)
+        T = makehgtform('translate', [trajectory(i,1), trajectory(i,2), 0], ...
+            'zrotate', trajectory(i,3));
+        hg.Matrix = T;
+        
+        % Update beacon lines from CURRENT position (using SAME call as EKF)
+        current_pose = [trajectory(i,1), trajectory(i,2), trajectory(i,3)];
+        B_current = BeaconDetection(N, current_pose);
+        
+        % Update beacon line positions in ax1
+        for j = 1:N
+            if ~isnan(B_current(j).d) && ~isnan(B_current(j).a)
+                set(beaconLineHandles(j), 'XData', [trajectory(i,1), beacons(j,1)], ...
+                     'YData', [trajectory(i,2), beacons(j,2)]);
+            else
+                set(beaconLineHandles(j), 'XData', NaN, 'YData', NaN);
+            end
+        end
+        
+        % ========== PROGRESSIVE EKF PLOT ==========
+        % Add current EKF estimate to progressive line
+        addpoints(hEKF, estimated_trajectory(i,1), estimated_trajectory(i,2));
+        
+        % Update error plot (show current point) in ax2
+        pos_error_i = sqrt((trajectory(i,1) - estimated_trajectory(i,1))^2 + ...
+                          (trajectory(i,2) - estimated_trajectory(i,2))^2);
+        addpoints(hError, i, pos_error_i);
+        
+        drawnow limitrate;
+        pause(0.1);
+    end
     
-    % Add legend for start/end
-    legend('Ground Truth', 'EKF Estimate', 'Beacons', ...
-           'Start (Truth)', 'Start (EKF)', 'End (Truth)', 'End (EKF)', ...
-           'Location', 'best');
+    fprintf('  Visualization complete.\n');
+
+    % ============ SAVE PARAMETERS FOR LATER PHASES ============
+    % Store parameters in base workspace for use in Simulation phase
+    assignin('base', 'rm1_N', N);
+    assignin('base', 'rm1_Dt', Dt);
+    assignin('base', 'rm1_r', r);
+    assignin('base', 'rm1_L', L);
+    assignin('base', 'rm1_Vn', Vn);
+    assignin('base', 'rm1_Wn', Wn);
+    assignin('base', 'rm1_V', V);
+    assignin('base', 'rm1_trajectory', trajectory);
 end
