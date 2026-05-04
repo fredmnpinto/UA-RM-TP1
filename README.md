@@ -12,7 +12,7 @@ This project implements EKF (Extended Kalman Filter) localization for a mobile r
 
 ```
 ├── rm1_129466.m              # Main entry point
-├── lib/                      # Library directory
+├── src/                      # Source directory
 │   ├── planTrajectory_AI.m      # Trajectory planning (AI-coded)
 │   ├── ekfLocalization.m    # EKF localization loop
 │   ├── EKF.m                # EKF class implementation
@@ -72,10 +72,10 @@ The visualization shows:
 
 ## Key Components
 
-### Trajectory Planning (`lib/planTrajectory_AI.m`)
+### Trajectory Planning (`src/planTrajectory_AI.m`)
 Generates trajectory starting at (0,0) passing through all beacons. Uses Hermite cubic interpolation (pchip) as required by assignment section 2.3. Control points evenly spaced in x, y values from pchip.
 
-### EKF Localization (`lib/EKF.m`, `lib/ekfLocalization.m`)
+### EKF Localization (`src/EKF.m`, `src/ekfLocalization.m`)
 Implements Extended Kalman Filter with:
 - **Prediction step**: Propagates state using velocity commands
 - **Update step**: Corrects state using beacon measurements

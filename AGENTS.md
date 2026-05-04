@@ -16,7 +16,7 @@
 - `rm1_129466.m` - Main entry point with parameters (N, Dt, r, L, Vn, Wn, V)
 
 ### Trajectory Planning
-- `lib/planTrajectory_AI.m` - Generates trajectory starting at (0,0) passing through all beacons
+- `src/planTrajectory_AI.m` - Generates trajectory starting at (0,0) passing through all beacons
 - Uses Hermite cubic interpolation (pchip) as required by assignment section 2.3
 - Control points evenly spaced in x, y values from pchip
 - Function signature: trajectory = planTrajectory_AI(beacons, Dt, V)
@@ -27,31 +27,31 @@
   - Signature: `B = BeaconDetection(N, P, obsNoise)`
   - Returns: `B.X`, `B.Y` (positions), `B.d`, `B.a` (measurements), `B.dn`, `B.an` (noise sigmas)
   - Returns NaN when beacon out of range or detection fails
-- `lib/BeaconVisualization.m` - Class handling beacon detection lines and distance labels
+- `src/BeaconVisualization.m` - Class handling beacon detection lines and distance labels
 
 ### EKF Localization
-- `lib/EKF.m` - EKF class with `predict()` and `update()` methods
+- `src/EKF.m` - EKF class with `predict()` and `update()` methods
   - State flow: `initial_estimate` → `predict()` → `prediction` → `update()` → `corrected_prediction`
   - Properties: `P_initial`, `P_prediction`, `P_corrected` (covariance matrices)
-- `lib/ekfLocalization_AI.m` - Main EKF localization function (iterates through trajectory)
+- `src/ekfLocalization_AI.m` - Main EKF localization function (iterates through trajectory)
   - Debug statements removed (clean version)
   - Uses estimated poses for control input (not ground truth)
-- `lib/saveLocalizationResults_AI.m` - Saves estimated trajectory to txt file
+- `src/saveLocalizationResults_AI.m` - Saves estimated trajectory to txt file
 
 ### Kinematic Models (Task 1 Complete)
-- `lib/computeKinematics.m` - Computes wheel velocities for 3 robot models
+- `src/computeKinematics.m` - Computes wheel velocities for 3 robot models
   - Differential Drive: ωR = (v + ω·L/2)/r, ωL = (v - ω·L/2)/r
   - Tricycle: ωT = v/r, α = atan2(ω·L, v)
   - Omnidirectional: Uses M matrix from localvels.m (class config)
   - Last point set to 0 (robot stops)
-- `lib/saveKinematicsResults_AI.m` - Saves wheel velocities to 3 output files
+- `src/saveKinematicsResults_AI.m` - Saves wheel velocities to 3 output files
   - `DD_nnnnnn.txt` (ωR, ωL)
   - `TRI_nnnnnn.txt` (ωT, α)
   - `OMNI_nnnnnn.txt` (ω1, ω2, ω3)
 
 ### Visualization
-- `lib/DrawRobot.m` - Draws robot shape (types: 1=DD, 2=tricycle, 3=omni)
-- `lib/BeaconVisualization` class - Manages detection lines (red dashed) and distance labels
+- `src/DrawRobot.m` - Draws robot shape (types: 1=DD, 2=tricycle, 3=omni)
+- `src/BeaconVisualization` class - Manages detection lines (red dashed) and distance labels
 
 ## Documentation Location
 
@@ -118,15 +118,15 @@ Read: peter_corke_toolbox.md from line X (reading ~100 lines)
 ### Project Functions
 | Function | Type | Description |
 |----------|------|-------------|
-| lib/planTrajectory_AI | Function | Trajectory starting at (0,0) through beacons via pchip |
+| src/planTrajectory_AI | Function | Trajectory starting at (0,0) through beacons via pchip |
 | BeaconDetection | Function (.p) | Provided beacon simulation (positions + measurements) |
-| lib/BeaconVisualization | Class | Manages beacon detection visualization |
-| lib/EKF | Class | Extended Kalman Filter for localization |
-| lib/ekfLocalization_AI | Function | Main EKF localization loop (uses estimates) |
-| lib/saveLocalizationResults_AI | Function | Saves trajectory to txt file |
-| lib/computeKinematics | Function | Computes wheel velocities for 3 robot models |
-| lib/saveKinematicsResults_AI | Function | Saves wheel velocities to 3 output files |
-| lib/DrawRobot | Function | Draws robot shape (provided) |
+| src/BeaconVisualization | Class | Manages beacon detection visualization |
+| src/EKF | Class | Extended Kalman Filter for localization |
+| src/ekfLocalization_AI | Function | Main EKF localization loop (uses estimates) |
+| src/saveLocalizationResults_AI | Function | Saves trajectory to txt file |
+| src/computeKinematics | Function | Computes wheel velocities for 3 robot models |
+| src/saveKinematicsResults_AI | Function | Saves wheel velocities to 3 output files |
+| src/DrawRobot | Function | Draws robot shape (provided) |
 
 ## Usage Pattern
 
@@ -156,25 +156,25 @@ bicycle = Bicycle(V, L);  % max linear velocity, wheelbase
 ## Completed Tasks (as of 2026-05-04)
 
 ### Task 1: Trajectory Planning ✅
-- `lib/planTrajectory_AI.m` - Fixed to start at (0,0) and pass through all beacons
+- `src/planTrajectory_AI.m` - Fixed to start at (0,0) and pass through all beacons
 - Uses Hermite cubic interpolation (`pchip`) as required by assignment section 2.3
 - Returns trajectory with evenly spaced x values from pchip
 - `rm1_129466.m` - Gets beacons via `BeaconDetection(N)` and passes to `planTrajectory_AI()`
 
 ### Task 2: Kinematic Model Calculations ✅
-- `lib/computeKinematics.m` - Computes wheel velocities for 3 robot models:
+- `src/computeKinematics.m` - Computes wheel velocities for 3 robot models:
   - Differential Drive: ωᵣ = (v + ω·L/2)/r, ωₗ = (v - ω·L/2)/r
   - Tricycle: ωₜ = v/r, α = atan2(ω·L, v)
   - Omnidirectional: Uses M matrix from `localvels.m` (case 3)
-- `lib/saveKinematicsResults_AI.m` - Saves to 3 output files:
+- `src/saveKinematicsResults_AI.m` - Saves to 3 output files:
   - `DD_129466.txt` (ωR, ωL)
   - `TRI_129466.txt` (ωT, α)
   - `OMNI_129466.txt` (ω1, ω2, ω3)
 - `rm1_129466.m` - Added Phase 3 to compute and save kinematic results
 
 ### Other Changes
-- Removed debug `fprintf` statements from `lib/ekfLocalization_AI.m`
-- Fixed bug in `lib/saveKinematicsResults_AI.m` (undefined `fid` variable)
+- Removed debug `fprintf` statements from `src/ekfLocalization_AI.m`
+- Fixed bug in `src/saveKinematicsResults_AI.m` (undefined `fid` variable)
 - Renamed nearly-100% AI-coded functions with `_AI` suffix:
   - `planTrajectory.m` → `planTrajectory_AI.m`
   - `ekfLocalization.m` → `ekfLocalization_AI.m`

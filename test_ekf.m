@@ -2,7 +2,7 @@
 % 5-segment trajectory: straight, turn, straight, turn, straight
 
 % Add lib directory to path
-addpath('lib');
+addpath('src');
 
 % EKF Constructor takes (Vn, Wn, N) only (lib/EKF.m line 20)
 Vn = 0.1;       % Linear velocity noise std (m/s)

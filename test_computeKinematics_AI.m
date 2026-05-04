@@ -9,7 +9,7 @@ function test_computeKinematics_AI()
     fprintf('========================================\n\n');
 
     % ============ SETUP ===========
-    addpath('lib');
+    addpath('src');
     
     r = 0.15;   % wheel radius (m)
     L = 1.0;    % wheel separation (m)
