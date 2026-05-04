@@ -20,8 +20,18 @@
 - Uses linear interpolation with Delta_d = Dt * V * 0.5 for smooth animation
 
 ### Beacon Simulation
-- `BeaconDetection.m` - Mock function generating random beacon positions (2-25m, first quadrant)
+- `BeaconDetection.p` - Provided P-code function for beacon position and measurement simulation
+  - Signature: `B = BeaconDetection(N, P, obsNoise)`
+  - Returns: `B.X`, `B.Y` (positions), `B.d`, `B.a` (measurements), `B.dn`, `B.an` (noise sigmas)
+  - Returns NaN when beacon out of range or detection fails
 - `BeaconVisualization.m` - Class handling beacon detection lines and distance labels
+
+### EKF Localization
+- `EKF.m` - EKF class with `predict()` and `update()` methods
+  - State flow: `initial_estimate` → `predict()` → `prediction` → `update()` → `corrected_prediction`
+  - Properties: `P_initial`, `P_prediction`, `P_corrected` (covariance matrices)
+- `ekfLocalization.m` - Main EKF localization function (iterates through trajectory)
+- `saveLocalizationResults.m` - Saves estimated trajectory to txt file
 
 ### Visualization
 - `DrawRobot.m` - Draws robot shape (types: 1=DD, 2=tricycle, 3=omni)
@@ -92,9 +102,12 @@ Read: peter_corke_toolbox.md from line X (reading ~100 lines)
 ### Project Functions
 | Function | Type | Description |
 |----------|------|-------------|
-| planTrajectory | Function | Random trajectory with 2-3 waypoints |
-| BeaconDetection | Function | Mock beacon generator (random positions) |
+| planTrajectory | Function | Linear interpolation trajectory with 2-3 random waypoints |
+| BeaconDetection | Function (.p) | Provided beacon simulation (positions + measurements) |
 | BeaconVisualization | Class | Manages beacon detection visualization |
+| EKF | Class | Extended Kalman Filter for localization |
+| ekfLocalization | Function | Main EKF localization loop |
+| saveLocalizationResults | Function | Saves trajectory to txt file |
 | DrawRobot | Function | Draws robot shape (provided) |
 
 ## Usage Pattern
