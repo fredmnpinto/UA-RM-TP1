@@ -40,83 +40,23 @@ function [estimated_trajectory, P_history] = ekfLocalization(trajectory, N, Dt, 
     estimated_trajectory(1, :) = ekf.initial_estimate';
     P_history(1, :, :) = ekf.P_initial;
     
-    % DEBUG: Start
-    fprintf('\n=== DEBUG: EKF Localization Start ===\n');
-    fprintf('M = %d trajectory points\n', M);
-    fprintf('Initial initial_estimate: [%.4f, %.4f, %.4f]\n', ekf.initial_estimate);
-    fprintf('Initial P_initial:\n');
-    disp(ekf.P_initial);
-    
     % EKF Main Loop
     for k = 1:(M-1)
         % Get current ground truth pose (for control input calculation)
         x_prev = trajectory(k, :)';
         x_curr = trajectory(k+1, :)';
         
-        % DEBUG: Start of loop
-        fprintf('\n=== k = %d ===\n', k);
-        fprintf('x_prev = [%.4f, %.4f, %.4f]\n', x_prev);
-        fprintf('x_curr = [%.4f, %.4f, %.4f]\n', x_curr);
-        
         % Calculate control input from trajectory
         [v, omega, dt_actual] = ekf.computeControlInput(x_prev, x_curr, V);
         
-        % DEBUG: After computeControlInput
-        fprintf('v = %.4f, omega = %.4f, dt_actual = %.6f\n', v, omega, dt_actual);
-        
-        % ========== PREDICTION STEP ==========
+        % ============ PREDICTION STEP ============
         % Uses initial_estimate (x̂_k), stores to prediction (x̄_k+1)
-        
-        % DEBUG: Before predict
-        fprintf('Before predict: initial_estimate = [%.4f, %.4f, %.4f]\n', ekf.initial_estimate);
-        
         ekf.predict(v, omega, dt_actual);
         
-        % DEBUG: After predict
-        fprintf('After predict: prediction = [%.4f, %.4f, %.4f]\n', ekf.prediction);
-        fprintf('After predict: P_prediction:\n');
-        disp(ekf.P_prediction);
-        
-        % ========== UPDATE STEP ==========
+        % ============ UPDATE STEP ============
         % Uses prediction (x̄_k+1), stores to corrected_prediction (x̂_k+1)
-        
-        % DEBUG: About to access ekf.prediction(1)
-        fprintf('DEBUG: About to access ekf.prediction(1), size = [%d, %d]\n', size(ekf.prediction));
-        
         robot_pose = [ekf.prediction(1), ekf.prediction(2), ekf.prediction(3)];
-        
-        % DEBUG: Before update
-        fprintf('Before update: robot_pose = [%.4f, %.4f, %.4f]\n', robot_pose);
-        fprintf('  prediction = [%.4f, %.4f, %.4f]\n', ekf.prediction);
-        
         ekf.update(robot_pose);
-        
-        % DEBUG: After update
-        fprintf('After update: corrected_prediction = [%.4f, %.4f, %.4f]\n', ekf.corrected_prediction);
-        fprintf('After update: P_corrected:\n');
-        disp(ekf.P_corrected);
-        
-        % DEBUG: Compare corrected_prediction vs ground truth
-        fprintf('k=%d: GT=[%.4f, %.4f, %.4f], EKF=[%.4f, %.4f, %.4f]\n', ...
-            k, x_curr(1), x_curr(2), x_curr(3), ...
-            ekf.corrected_prediction(1), ekf.corrected_prediction(2), ekf.corrected_prediction(3));
-        fprintf('  Diff: dx=%.4f, dy=%.4f, dtheta=%.4f\n', ...
-            x_curr(1)-ekf.corrected_prediction(1), ...
-            x_curr(2)-ekf.corrected_prediction(2), ...
-            wrapToPi(x_curr(3)-ekf.corrected_prediction(3)));
-        
-        % After update(), print what BeaconDetection returned
-        B_debug = BeaconDetection(N, [ekf.prediction(1), ekf.prediction(2), ekf.prediction(3)]);
-        fprintf('  BeaconDetection(robot_pose):\n');
-        for i = 1:N
-            fprintf('    Beacon %d: X=%.4f, Y=%.4f, d=%.4f, a=%.4f\n', ...
-                i, B_debug(i).X, B_debug(i).Y, B_debug(i).d, B_debug(i).a);
-        end
-        
-        % Check if theta is being used correctly
-        fprintf('  theta check: GT theta=%.4f, EKF theta=%.4f\n', ...
-            x_curr(3), ekf.corrected_prediction(3));
-        fprintf('  If EKF looks rotated, check if theta is off by pi/2\n');
         
         % Copy corrected_prediction back to initial_estimate for next iteration
         ekf.initial_estimate = ekf.corrected_prediction;
