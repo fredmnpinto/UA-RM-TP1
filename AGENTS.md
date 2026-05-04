@@ -17,6 +17,7 @@
 
 ### Trajectory Planning
 - `planTrajectory.m` - Generates random multi-waypoint trajectory (independent of beacons)
+- Starts at random point in first quadrant (within 5×scale meters of origin)
 - Uses linear interpolation with Delta_d = Dt * V * 0.5 for smooth animation
 
 ### Beacon Simulation

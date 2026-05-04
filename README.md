@@ -69,7 +69,7 @@ The visualization shows:
 ## Key Components
 
 ### Trajectory Planning (`planTrajectory.m`)
-Generates a multi-waypoint trajectory with 2-3 random waypoints. Uses linear interpolation with step size `Delta_d = Dt * V * 0.5` for smooth animation.
+Generates a multi-waypoint trajectory with 2-3 random waypoints. Starts at a random point in the first quadrant (within 5×scale meters of origin). Uses linear interpolation with step size `Delta_d = Dt * V * 0.5` for smooth animation.
 
 ### EKF Localization (`EKF.m`, `ekfLocalization.m`)
 Implements Extended Kalman Filter with:
@@ -103,7 +103,7 @@ This implementation addresses:
 
 - Beacons are fixed landmarks; the robot navigates past them, not to them
 - The EKF uses the professor's `BeaconDetection.p` as-is (no modifications)
-- Trajectory starts at origin (0, 0, 0) and passes through waypoints
+- Trajectory starts at a random point in the first quadrant (within 5×scale meters of origin)
 - Position error is displayed in real-time during animation
 
 ## Future Work
