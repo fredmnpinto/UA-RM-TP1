@@ -28,6 +28,9 @@ function [estimated_trajectory, P_history] = ekfLocalization(trajectory, N, Dt, 
     
     % Create EKF object
     ekf = EKF(Vn, Wn, N);
+
+    % Initialize EKF with first trajectory point (correct initial pose)
+    ekf.initial_estimate = trajectory(1, :)';
     
     M = size(trajectory, 1);
     estimated_trajectory = zeros(M, 3);
@@ -92,6 +95,28 @@ function [estimated_trajectory, P_history] = ekfLocalization(trajectory, N, Dt, 
         fprintf('After update: corrected_prediction = [%.4f, %.4f, %.4f]\n', ekf.corrected_prediction);
         fprintf('After update: P_corrected:\n');
         disp(ekf.P_corrected);
+        
+        % DEBUG: Compare corrected_prediction vs ground truth
+        fprintf('k=%d: GT=[%.4f, %.4f, %.4f], EKF=[%.4f, %.4f, %.4f]\n', ...
+            k, x_curr(1), x_curr(2), x_curr(3), ...
+            ekf.corrected_prediction(1), ekf.corrected_prediction(2), ekf.corrected_prediction(3));
+        fprintf('  Diff: dx=%.4f, dy=%.4f, dtheta=%.4f\n', ...
+            x_curr(1)-ekf.corrected_prediction(1), ...
+            x_curr(2)-ekf.corrected_prediction(2), ...
+            wrapToPi(x_curr(3)-ekf.corrected_prediction(3)));
+        
+        % After update(), print what BeaconDetection returned
+        B_debug = BeaconDetection(N, [ekf.prediction(1), ekf.prediction(2), ekf.prediction(3)]);
+        fprintf('  BeaconDetection(robot_pose):\n');
+        for i = 1:N
+            fprintf('    Beacon %d: X=%.4f, Y=%.4f, d=%.4f, a=%.4f\n', ...
+                i, B_debug(i).X, B_debug(i).Y, B_debug(i).d, B_debug(i).a);
+        end
+        
+        % Check if theta is being used correctly
+        fprintf('  theta check: GT theta=%.4f, EKF theta=%.4f\n', ...
+            x_curr(3), ekf.corrected_prediction(3));
+        fprintf('  If EKF looks rotated, check if theta is off by pi/2\n');
         
         % Copy corrected_prediction back to initial_estimate for next iteration
         ekf.initial_estimate = ekf.corrected_prediction;
