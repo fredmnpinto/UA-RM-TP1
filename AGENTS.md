@@ -16,7 +16,7 @@
 - `rm1_129466.m` - Main entry point with parameters (N, Dt, r, L, Vn, Wn, V)
 
 ### Trajectory Planning
-- `planTrajectory.m` - Generates random multi-waypoint trajectory (independent of beacons)
+- `lib/planTrajectory.m` - Generates random multi-waypoint trajectory (independent of beacons)
 - Starts at random point in first quadrant (within 5×scale meters of origin)
 - Uses linear interpolation with Delta_d = Dt * V * 0.5 for smooth animation
 
@@ -25,18 +25,18 @@
   - Signature: `B = BeaconDetection(N, P, obsNoise)`
   - Returns: `B.X`, `B.Y` (positions), `B.d`, `B.a` (measurements), `B.dn`, `B.an` (noise sigmas)
   - Returns NaN when beacon out of range or detection fails
-- `BeaconVisualization.m` - Class handling beacon detection lines and distance labels
+- `lib/BeaconVisualization.m` - Class handling beacon detection lines and distance labels
 
 ### EKF Localization
-- `EKF.m` - EKF class with `predict()` and `update()` methods
+- `lib/EKF.m` - EKF class with `predict()` and `update()` methods
   - State flow: `initial_estimate` → `predict()` → `prediction` → `update()` → `corrected_prediction`
   - Properties: `P_initial`, `P_prediction`, `P_corrected` (covariance matrices)
-- `ekfLocalization.m` - Main EKF localization function (iterates through trajectory)
-- `saveLocalizationResults.m` - Saves estimated trajectory to txt file
+- `lib/ekfLocalization.m` - Main EKF localization function (iterates through trajectory)
+- `lib/saveLocalizationResults.m` - Saves estimated trajectory to txt file
 
 ### Visualization
-- `DrawRobot.m` - Draws robot shape (types: 1=DD, 2=tricycle, 3=omni)
-- `BeaconVisualization` class - Manages detection lines (red dashed) and distance labels
+- `lib/DrawRobot.m` - Draws robot shape (types: 1=DD, 2=tricycle, 3=omni)
+- `lib/BeaconVisualization` class - Manages detection lines (red dashed) and distance labels
 
 ## Documentation Location
 
@@ -103,13 +103,13 @@ Read: peter_corke_toolbox.md from line X (reading ~100 lines)
 ### Project Functions
 | Function | Type | Description |
 |----------|------|-------------|
-| planTrajectory | Function | Linear interpolation trajectory with 2-3 random waypoints |
+| lib/planTrajectory | Function | Linear interpolation trajectory with 2-3 random waypoints |
 | BeaconDetection | Function (.p) | Provided beacon simulation (positions + measurements) |
-| BeaconVisualization | Class | Manages beacon detection visualization |
-| EKF | Class | Extended Kalman Filter for localization |
-| ekfLocalization | Function | Main EKF localization loop |
-| saveLocalizationResults | Function | Saves trajectory to txt file |
-| DrawRobot | Function | Draws robot shape (provided) |
+| lib/BeaconVisualization | Class | Manages beacon detection visualization |
+| lib/EKF | Class | Extended Kalman Filter for localization |
+| lib/ekfLocalization | Function | Main EKF localization loop |
+| lib/saveLocalizationResults | Function | Saves trajectory to txt file |
+| lib/DrawRobot | Function | Draws robot shape (provided) |
 
 ## Usage Pattern
 

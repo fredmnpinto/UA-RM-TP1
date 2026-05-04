@@ -13,6 +13,9 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
 % Output:
 %   trajectory - Mx3 matrix [x, y, theta] for each point
 
+    % ============ ADD LIB DIRECTORY TO PATH ============
+    addpath('lib');
+
     % ============ SET DEFAULT PARAMETERS ============
     if nargin < 1 || isempty(N), N = 4; end
     if nargin < 2 || isempty(Dt), Dt = 1; end

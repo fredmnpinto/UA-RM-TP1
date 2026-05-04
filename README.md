@@ -12,13 +12,14 @@ This project implements EKF (Extended Kalman Filter) localization for a mobile r
 
 ```
 ├── rm1_129466.m              # Main entry point
-├── planTrajectory.m          # Trajectory planning (waypoint generation)
-├── ekfLocalization.m         # EKF localization loop
-├── EKF.m                    # EKF class implementation
-├── saveLocalizationResults.m # Save results to file
+├── lib/                      # Library directory
+│   ├── planTrajectory.m      # Trajectory planning (waypoint generation)
+│   ├── ekfLocalization.m     # EKF localization loop
+│   ├── EKF.m                # EKF class implementation
+│   ├── saveLocalizationResults.m # Save results to file
+│   ├── BeaconVisualization.m # Beacon detection visualization class
+│   └── DrawRobot.m          # Robot shape drawing function
 ├── BeaconDetection.p         # Provided P-code (beacon simulation)
-├── BeaconVisualization.m     # Beacon detection visualization class
-├── DrawRobot.m              # Robot shape drawing function
 ├── test_ekf.m               # EKF test script
 ├── test_trajectory.m        # Trajectory test script
 └── AGENTS.md               # AI agent documentation
@@ -68,10 +69,10 @@ The visualization shows:
 
 ## Key Components
 
-### Trajectory Planning (`planTrajectory.m`)
+### Trajectory Planning (`lib/planTrajectory.m`)
 Generates a multi-waypoint trajectory with 2-3 random waypoints. Starts at a random point in the first quadrant (within 5×scale meters of origin). Uses linear interpolation with step size `Delta_d = Dt * V * 0.5` for smooth animation.
 
-### EKF Localization (`EKF.m`, `ekfLocalization.m`)
+### EKF Localization (`lib/EKF.m`, `lib/ekfLocalization.m`)
 Implements Extended Kalman Filter with:
 - **Prediction step**: Propagates state using velocity commands
 - **Update step**: Corrects state using beacon measurements

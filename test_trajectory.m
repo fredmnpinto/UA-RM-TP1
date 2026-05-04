@@ -1,5 +1,8 @@
 % Test script for trajectory and visualization fixes
 
+% Add lib directory to path
+addpath('lib');
+
 % Run the main function
 fprintf('=== Testing trajectory generation and visualization ===\n\n');
 

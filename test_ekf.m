@@ -1,7 +1,10 @@
 %% Complex Trajectory EKF Localization Test
 % 5-segment trajectory: straight, turn, straight, turn, straight
 
-% EKF Constructor takes (Vn, Wn, N) only (EKF.m line 20)
+% Add lib directory to path
+addpath('lib');
+
+% EKF Constructor takes (Vn, Wn, N) only (lib/EKF.m line 20)
 Vn = 0.1;       % Linear velocity noise std (m/s)
 Wn = 0.05;      % Angular velocity noise std (rad/s)
 N = 6;          % Number of beacons (matches BeaconDetection.p)
