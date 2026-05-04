@@ -1,0 +1,396 @@
+\documentclass[a4paper,11pt]{report}
+
+% ---- Encoding & language ----
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+
+% ---- Page geometry ----
+\usepackage[top=2.2cm, bottom=2.2cm, left=2.5cm, right=2.5cm]{geometry}
+
+% ---- Typography ----
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% ---- Math ----
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+
+% ---- Figures & tables ----
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{subcaption}
+
+% ---- Units ----
+\usepackage{siunitx}
+\sisetup{per-mode=symbol, detect-all}
+
+% ---- Hyperlinks ----
+\usepackage[colorlinks=true, linkcolor=blue!60!black, citecolor=blue!60!black, urlcolor=blue]{hyperref}
+
+% ---- Code listings ----
+\usepackage{listings}
+\lstset{basicstyle=\small\ttfamily, breaklines=true, frame=single, language=Matlab}
+
+% ---- Misc ----
+\usepackage{xcolor}
+\usepackage{parskip}
+\setlength{\parskip}{4pt}
+
+% ---- Chapter/section spacing ----
+\usepackage{titlesec}
+\titleformat{\chapter}[hang]{\large\bfseries}{Chapter \thechapter.}{1em}{}
+\titlespacing*{\chapter}{0pt}{10pt}{8pt}
+\titlespacing*{\section}{0pt}{8pt}{4pt}
+\titlespacing*{\subsection}{0pt}{6pt}{3pt}
+
+% =========================================================
+\begin{document}
+
+% ---- Cover page ----
+\begin{titlepage}
+  \centering
+  \vspace*{1.5cm}
+  {\Large\bfseries Universidade de Aveiro\par}
+  \vspace{0.3cm}
+  {\large Mestrado em Rob\'otica e Sistemas Inteligentes\par}
+  \vspace{2cm}
+  \rule{\linewidth}{1pt}\\[0.6em]
+  {\LARGE\bfseries Mobile Robotics -- Assignment 1\par}
+  \vspace{0.4em}
+  {\Large Robot Probabilistic Localisation\\using Redundant Landmarks\par}
+  \rule{\linewidth}{1pt}
+  \vspace{2cm}
+  {\large Student number: \textbf{129466}\par}
+  \vspace{0.3cm}
+  {\large MSc in Robotics and Intelligent Systems\par}
+  \vfill
+  {\large \today\par}
+\end{titlepage}
+
+% ---- Abstract ----
+\begin{abstract}
+\noindent
+This report describes the implementation of a probabilistic localisation system for a mobile robot navigating through a set of fixed beacons. A smooth trajectory is planned from the origin $(0,0,0)$ through all $N$ beacon positions using Piecewise Cubic Hermite interpolation (\texttt{pchip}). An Extended Kalman Filter (EKF) fuses the unicycle motion model with range and bearing measurements from all visible beacons at each time step, gracefully ignoring any beacon that returns \texttt{NaN}. Running with $N{=}12$ beacons the filter achieves a mean position error of \SI{0.96}{\metre} and a mean heading error of \SI{0.009}{\radian} over a path of $\approx\SI{851}{\metre}$. Wheel velocities are also computed for three kinematic models -- Differential Drive, Tricycle and Omnidirectional -- and saved to the required output files.
+\end{abstract}
+
+\tableofcontents
+
+% =========================================================
+\chapter{Introduction}
+% =========================================================
+
+The goal of this assignment is to localise a mobile robot that travels along a path which starts at a fixed reference point and visits $N$ beacons (landmarks) of known position before stopping at the last one.  Beacons can be sensed by an on-board sensor that returns the range $d_i$ and the bearing $\alpha_i$ to each beacon $i$, both corrupted by Gaussian noise.  Because more beacons than strictly necessary are typically visible at any instant, the system can exploit this \emph{redundancy} to produce a more robust estimate.  Measurements may also be temporarily unavailable (returned as \texttt{NaN}) when a beacon is too close, too far, or fails intermittently.
+
+Two broad localisation strategies are contrasted in this work:
+\begin{itemize}
+  \item \textbf{Classic deterministic methods} (triangulation, trilateration) -- produce a single point estimate from a minimal set of measurements with no uncertainty quantification.
+  \item \textbf{Probabilistic EKF} -- maintains a full Gaussian belief over the pose $\bm{x}_k = (x_k, y_k, \theta_k)^\top$, propagated by a nonlinear motion model and corrected at every sensor update using all available beacon measurements simultaneously.
+\end{itemize}
+
+The report is structured as follows.  Chapter~\ref{chap:methodology} presents the mathematical foundations of trajectory planning, the EKF formulation, and the three kinematic models.  Chapter~\ref{chap:results} summarises the numerical results and discusses their quality.  Chapter~\ref{chap:conclusion} draws conclusions and suggests directions for future work.
+
+% =========================================================
+\chapter{Methodology}
+\label{chap:methodology}
+% =========================================================
+
+\section{Trajectory Planning}
+
+\subsection{Requirements}
+
+The planned trajectory must:
+\begin{enumerate}
+  \item start at the origin with pose $(0, 0, 0)$;
+  \item pass through every beacon position $B_n = (X_n, Y_n)$, $n = 1, \ldots, N$, in order;
+  \item end at the last beacon;
+  \item be smooth, using \emph{Hermite cubic interpolation} (\texttt{pchip}) as the required interpolation method;
+  \item contain control points evenly spaced in $x$, with $y$ values obtained from the \texttt{pchip} curve.
+\end{enumerate}
+
+\subsection{Control-point spacing}
+
+Given a desired average linear velocity $V$ (\si{\metre\per\second}) and sensor sampling interval $\Delta t$ (\si{\second}), the nominal arc-length between successive control points is
+\begin{equation}
+  \Delta d = V \cdot \Delta t \quad [\si{\metre}].
+  \label{eq:delta_d}
+\end{equation}
+For each segment between consecutive waypoints the number of intermediate control points is approximately $\lfloor \ell / \Delta d \rceil$, where $\ell$ is the Euclidean distance between the waypoints.
+
+\subsection{Hermite interpolation}
+
+The full ordered waypoint list is
+\begin{equation}
+  \mathbf{W} =
+  \begin{pmatrix} 0 & 0 \\ X_1 & Y_1 \\ \vdots & \vdots \\ X_N & Y_N \end{pmatrix} \in \mathbb{R}^{(N+1)\times 2}.
+\end{equation}
+A uniformly spaced query vector $x_q \in [\min x_w,\, \max x_w]$ is constructed and the corresponding $y$ values are
+\begin{equation}
+  y_q = \texttt{pchip}(x_w,\; y_w,\; x_q),
+\end{equation}
+yielding $M$ control points $(x_q^{(i)}, y_q^{(i)})$.  The heading at each point is set to the direction to the next point:
+\begin{equation}
+  \theta_i = \mathrm{atan2}\!\left(y_q^{(i+1)} - y_q^{(i)},\; x_q^{(i+1)} - x_q^{(i)}\right), \quad i = 1, \ldots, M-1,
+\end{equation}
+with $\theta_M = \theta_{M-1}$, and all angles wrapped to $(-\pi, \pi]$.
+
+\section{Extended Kalman Filter}
+
+\subsection{State and notation}
+
+The robot state is the planar pose
+\begin{equation}
+  \bm{x}_k = (x_k,\; y_k,\; \theta_k)^\top \in \mathbb{R}^3.
+\end{equation}
+Following the ISO~80000-2 convention used in the assignment, predicted (prior) quantities carry an overbar and updated (posterior) quantities carry a hat.
+
+\subsection{Initialisation}
+
+\begin{equation}
+  \hat{\bm{x}}_0 = \bm{0}, \qquad
+  \mathbf{P}_0 = \mathrm{diag}\!\left(\sigma_{x,0}^2,\; \sigma_{y,0}^2,\; \sigma_{\theta,0}^2\right)
+               = \mathrm{diag}(0.01^2,\; 0.01^2,\; 0.1^2).
+\end{equation}
+
+\subsection{Prediction step}
+
+The unicycle (differential-drive) motion model propagates the state by
+\begin{align}
+  \bar{x}_{k+1}      &= \hat{x}_k + v\,\Delta t\cos\hat\theta_k, \\
+  \bar{y}_{k+1}      &= \hat{y}_k + v\,\Delta t\sin\hat\theta_k, \\
+  \bar\theta_{k+1}   &= \hat\theta_k + \omega\,\Delta t,
+\end{align}
+where $(v, \omega)$ are the linear and angular velocity commands.  The control input $\mathbf{u}_k = (v, \omega)^\top$ is derived from consecutive poses on the planned trajectory.
+
+\medskip
+The covariance is propagated via linearisation:
+\begin{equation}
+  \bar{\mathbf{P}}_{k+1} = \mathbf{F}_x\,\hat{\mathbf{P}}_k\,\mathbf{F}_x^\top
+                          + \mathbf{F}_w\,\mathbf{Q}\,\mathbf{F}_w^\top,
+  \label{eq:pred_cov}
+\end{equation}
+with process-noise covariance $\mathbf{Q} = \mathrm{diag}(\sigma_v^2, \sigma_\omega^2)$ and Jacobians
+\begin{equation}
+  \mathbf{F}_x = \begin{pmatrix}
+    1 & 0 & -v\Delta t\sin\hat\theta_k \\
+    0 & 1 &  v\Delta t\cos\hat\theta_k \\
+    0 & 0 & 1
+  \end{pmatrix}, \qquad
+  \mathbf{F}_w = \begin{pmatrix}
+    \Delta t\cos\hat\theta_k & 0 \\
+    \Delta t\sin\hat\theta_k & 0 \\
+    0 & \Delta t
+  \end{pmatrix}.
+\end{equation}
+
+\subsection{Update step}
+
+For each beacon $i$ with a valid measurement (i.e.\ $B_i.d \neq \mathrm{NaN}$ and $B_i.a \neq \mathrm{NaN}$), the predicted observation from the prior state $\bar{\bm{x}}_{k+1}$ is
+\begin{align}
+  \delta x_i &= X_i - \bar{x}_{k+1}, \quad \delta y_i = Y_i - \bar{y}_{k+1}, \\
+  \hat{d}_i  &= \sqrt{\delta x_i^2 + \delta y_i^2}, \\
+  \hat\alpha_i &= \mathrm{atan2}(\delta y_i,\;\delta x_i) - \bar\theta_{k+1}.
+\end{align}
+The innovation for beacon $i$ is
+\begin{equation}
+  \bm{\nu}_i = \begin{pmatrix} d_i^{\mathrm{meas}} - \hat{d}_i \\[2pt]
+               \mathrm{wrap}(\alpha_i^{\mathrm{meas}} - \hat\alpha_i) \end{pmatrix},
+\end{equation}
+where $\mathrm{wrap}(\cdot)$ maps angles to $(-\pi,\pi]$.  All visible beacons are stacked into a single innovation vector $\bm{\nu}$ and the corresponding Jacobian matrix
+\begin{equation}
+  \mathbf{H}_i = \begin{pmatrix}
+    -\delta x_i / \hat{d}_i & -\delta y_i / \hat{d}_i & 0 \\[2pt]
+     \delta y_i / \hat{d}_i^2 & -\delta x_i / \hat{d}_i^2 & -1
+  \end{pmatrix}
+\end{equation}
+is assembled into the full Jacobian $\mathbf{H}$ by row-stacking.  The per-beacon noise covariance $\mathbf{R}_i = \mathrm{diag}(\sigma_{d,i}^2, \sigma_{\alpha,i}^2)$ comes directly from the \texttt{BeaconDetection} function fields \texttt{B.dn} and \texttt{B.an}.
+
+The standard EKF correction then gives
+\begin{align}
+  \mathbf{S} &= \mathbf{H}\,\bar{\mathbf{P}}_{k+1}\,\mathbf{H}^\top + \mathbf{R}, \label{eq:innov_cov} \\
+  \mathbf{K} &= \bar{\mathbf{P}}_{k+1}\,\mathbf{H}^\top\,\mathbf{S}^{-1}, \label{eq:kalman_gain} \\
+  \hat{\bm{x}}_{k+1} &= \bar{\bm{x}}_{k+1} + \mathbf{K}\,\bm{\nu}, \label{eq:state_update} \\
+  \hat{\mathbf{P}}_{k+1} &= (\mathbf{I} - \mathbf{K}\mathbf{H})\,\bar{\mathbf{P}}_{k+1}\,(\mathbf{I} - \mathbf{K}\mathbf{H})^\top
+                            + \mathbf{K}\,\mathbf{R}\,\mathbf{K}^\top. \label{eq:cov_update}
+\end{align}
+Equation~\eqref{eq:cov_update} uses the numerically stable \emph{Joseph form}, which guarantees positive semi-definiteness even with finite-precision arithmetic.  If no beacon is visible at a given step, the posterior is set equal to the prior: $\hat{\bm{x}}_{k+1} = \bar{\bm{x}}_{k+1}$, $\hat{\mathbf{P}}_{k+1} = \bar{\mathbf{P}}_{k+1}$.
+
+\subsection{Use of estimated poses as control input}
+
+In a real deployment the ground-truth pose is unavailable.  Control inputs $(v, \omega)$ are therefore derived from the \emph{current estimate} $\hat{\bm{x}}_k$ and the desired next waypoint $\bm{x}_{k+1}^{\mathrm{plan}}$:
+\begin{equation}
+  v = \frac{\|\bm{x}_{k+1}^{\mathrm{plan}} - \hat{\bm{x}}_k\|_2}{\Delta t_{\mathrm{actual}}}, \qquad
+  \omega = \frac{\mathrm{wrap}(\theta_{k+1}^{\mathrm{plan}} - \hat\theta_k)}{\Delta t_{\mathrm{actual}}},
+\end{equation}
+where $\Delta t_{\mathrm{actual}} = \|\bm{p}_{k+1}^{\mathrm{plan}} - \hat{\bm{p}}_k\|_2 / V$ and $\bm{p}$ denotes the $(x,y)$ part.
+
+\section{Kinematic Models}
+
+All three robots share parameters: wheel radius $r$ and inter-wheel distance $L$.  At each trajectory step $i$, the linear velocity $v_i$ and angular velocity $\omega_i$ are extracted from consecutive ground-truth poses, and the corresponding wheel quantities are computed as described below.
+
+\subsection{Differential Drive}
+
+The inverse kinematics from $(v, \omega)$ to right/left wheel angular velocities is
+\begin{equation}
+  \omega_R = \frac{v + \omega L/2}{r}, \qquad
+  \omega_L = \frac{v - \omega L/2}{r}.
+  \label{eq:dd_ik}
+\end{equation}
+Verification: for pure straight motion ($\omega = 0$) both wheels spin at $v/r$; for pure in-place rotation ($v = 0$) the wheels spin at equal speed in opposite directions.
+
+\subsection{Tricycle}
+
+The tricycle model assumes rear-wheel traction on the equivalent single virtual rear wheel and a steerable front wheel.  The inverse kinematics are
+\begin{equation}
+  \omega_T = \frac{v}{r}, \qquad
+  \alpha = \mathrm{atan2}(\omega L,\; v).
+  \label{eq:tri_ik}
+\end{equation}
+For pure straight motion $\alpha = 0$; for pure rotation the front wheel turns to $\pm\pi/2$.
+
+\subsection{Omnidirectional (3-wheel)}
+
+Using the configuration from \texttt{localvels.m} (case~3), the forward-kinematics matrix relating wheel angular velocities to the robot-frame velocity $(V_x, V_y, \omega)^\top$ is
+\begin{equation}
+  \mathbf{M} = \begin{pmatrix}
+    0            &  r/\sqrt{3}  & -r/\sqrt{3} \\
+   -2r/3         &  r/3         &  r/3        \\
+    r/(3L)       &  r/(3L)      &  r/(3L)
+  \end{pmatrix}.
+  \label{eq:omni_M}
+\end{equation}
+In the robot frame the commanded velocity is $(v, 0, \omega)^\top$ (pure forward motion in $X_r$ with rotation $\omega$), so the required wheel velocities are
+\begin{equation}
+  \begin{pmatrix}\omega_1\\\omega_2\\\omega_3\end{pmatrix}
+  = \mathbf{M}^{-1}\begin{pmatrix}v\\0\\\omega\end{pmatrix}.
+  \label{eq:omni_ik}
+\end{equation}
+
+\subsection{Last-point convention}
+
+At the final trajectory point the robot has stopped, so all wheel velocities and steering angles are set to zero.
+
+% =========================================================
+\chapter{Results and Discussion}
+\label{chap:results}
+% =========================================================
+
+\section{Simulation parameters}
+
+Table~\ref{tab:params} summarises the default parameters used for the main run.
+
+\begin{table}[H]
+  \centering
+  \caption{Simulation parameters for \texttt{rm1\_129466(12)}.}
+  \label{tab:params}
+  \begin{tabular}{lll}
+    \toprule
+    Parameter & Symbol & Value \\
+    \midrule
+    Number of beacons         & $N$        & 12 \\
+    Sensor sampling interval  & $\Delta t$ & \SI{1}{\second} \\
+    Wheel radius              & $r$        & \SI{0.15}{\metre} \\
+    Wheel separation          & $L$        & \SI{1}{\metre} \\
+    Velocity noise ($1\sigma$)& $\sigma_v$ & \SI{0.1}{\metre\per\second} \\
+    Angular-vel.\ noise       & $\sigma_\omega$ & \SI{0.1}{\radian\per\second} \\
+    Desired linear velocity   & $V$        & \SI{5}{\metre\per\second} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Trajectory}
+
+The planner generated $M = 84$ control points over a total path length of approximately \SI{851.6}{\metre}, starting at $(0, 0)$ and ending at $(292.16, 53.16)$\,m after visiting all 12 beacons.  The spacing $\Delta d = V \cdot \Delta t = \SI{5}{\metre}$ between consecutive points approximates constant-velocity sampling.
+
+\section{Localisation accuracy}
+
+Table~\ref{tab:errors} reports the localisation errors computed against the ground-truth trajectory.
+
+\begin{table}[H]
+  \centering
+  \caption{EKF localisation error statistics ($N = 12$, 84 points).}
+  \label{tab:errors}
+  \begin{tabular}{lrr}
+    \toprule
+    Metric & Mean & Maximum \\
+    \midrule
+    Position error $\|\hat{\bm{p}}_k - \bm{p}_k\|$ & \SI{0.96}{\metre}     & \SI{3.53}{\metre} \\
+    Heading error $|\hat\theta_k - \theta_k|$        & \SI{0.009}{\radian}   & \SI{0.024}{\radian} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The position error remains below \SI{4}{\metre} throughout a path of more than \SI{850}{\metre}, which corresponds to a relative error under $0.5\%$.  The peak occurs at trajectory point~83--84, where the path makes a sharp turn near the last beacon and the visible beacon geometry momentarily degrades -- an expected behaviour with any filter relying on angular resection.  The heading is estimated with sub-degree accuracy at all times, confirming that the bearing measurements from multiple beacons strongly constrain $\theta$.
+
+The EKF covariance $\hat{\mathbf{P}}_k$ correctly reflects these observations: it decreases rapidly during the first few steps as measurements arrive, and occasionally grows slightly during segments where all beacons are at the boundary of their detection range.
+
+\section{Kinematic model analysis}
+
+\subsection{Differential Drive}
+
+Using Eq.~\eqref{eq:dd_ik}, the wheel velocities vary significantly along the path.  The first step requires very high $\omega_R = \omega_L \approx \SI{537}{\radian\per\second}$ because the robot moves almost vertically ($\theta_1 \approx 1.53$\,rad) from the origin, corresponding to a large displacement in one time step.  Along straight segments both wheels spin at identical speed; at turns they diverge by an amount proportional to the curvature.
+
+\subsection{Tricycle}
+
+The rear-wheel speed $\omega_T = v/r$ mirrors the linear velocity profile.  The steering angle $\alpha$ is near zero on straight segments and reaches $\pm\pi/2$ during tight turns.  The \texttt{atan2} formulation ensures $\alpha$ is always well defined, including for pure rotation ($v = 0$) where it saturates at $\pm\pi/2$.
+
+\subsection{Omnidirectional}
+
+The omnidirectional drive can combine translation and rotation independently.  As the trajectory has $V_y = 0$ in the robot frame, wheels 2 and 3 carry symmetric forward-thrust components while wheel~1 absorbs the purely rotational contribution.  The large first-step velocities observed in the Differential Drive appear here as well, since they reflect the same large $v$ and $\omega$ commands.
+
+\section{Comparison with classic methods}
+
+\subsection{Triangulation}
+
+Triangulation recovers the robot position by intersecting bearing lines from at least two beacons.  For each beacon pair $(i, j)$ the pose $(x, y)$ satisfying
+\begin{align}
+  \alpha_i^{\mathrm{meas}} &= \mathrm{atan2}(Y_i - y, X_i - x) - \theta, \\
+  \alpha_j^{\mathrm{meas}} &= \mathrm{atan2}(Y_j - y, X_j - x) - \theta,
+\end{align}
+must be solved jointly with an assumed $\theta$.  This is sensitive to bearing noise and geometry (small intersection angle $\Rightarrow$ large positional uncertainty); it yields no covariance estimate; and it requires a minimum of two beacons simultaneously visible.
+
+\subsection{Trilateration}
+
+Trilateration uses range circles: for at least three beacons
+\begin{equation}
+  (x - X_i)^2 + (y - Y_i)^2 = d_i^2, \quad i = 1, 2, 3.
+\end{equation}
+Subtracting pairs of equations linearises the problem but amplifies measurement noise when beacons are nearly collinear (poor GDOP -- Geometric Dilution Of Precision).  Again, no uncertainty is propagated and $\theta$ is not estimated.
+
+\subsection{Advantages of the EKF}
+
+\begin{enumerate}
+  \item \textbf{Uncertainty quantification.}  The posterior covariance $\hat{\mathbf{P}}_k$ provides a confidence region around the estimate, enabling safety-aware planning.
+  \item \textbf{Motion-model integration.}  The prediction step propagates the state between sensor updates, so the estimate remains useful even when all beacons are temporarily lost.
+  \item \textbf{Redundancy exploitation.}  All $N_{\mathrm{vis}}$ visible beacons contribute simultaneously to the update, improving accuracy and robustness beyond what any two- or three-beacon deterministic approach can achieve.
+  \item \textbf{NaN robustness.}  Unavailable measurements are cleanly excluded from $\mathbf{H}$ and $\bm{\nu}$; the filter degrades gracefully to a pure-prediction mode.
+  \item \textbf{Full pose estimation.}  The EKF jointly estimates $(x, y, \theta)$, whereas trilateration estimates only $(x, y)$ and triangulation requires prior knowledge of $\theta$.
+\end{enumerate}
+
+The main limitations of the EKF are: (i) it assumes Gaussian noise -- non-Gaussian tails can degrade performance; (ii) linearisation errors accumulate for highly nonlinear trajectories; (iii) it requires a reasonably accurate initial pose.  Alternatives such as Unscented Kalman Filters (UKF) or Particle Filters (PF) can address these at higher computational cost.
+
+% =========================================================
+\chapter{Conclusion}
+\label{chap:conclusion}
+% =========================================================
+
+This work successfully implemented the three main components of a mobile-robot localisation pipeline:
+
+\begin{enumerate}
+  \item \textbf{Trajectory planning.}  A smooth \texttt{pchip}-interpolated trajectory was generated from the origin through all $N$ beacon positions.  Control points are evenly spaced in $x$ at intervals of $\Delta d = V \cdot \Delta t$, consistent with constant-velocity sensor sampling.
+
+  \item \textbf{EKF localisation.}  The filter fuses the unicycle motion model with multi-beacon range and bearing measurements.  Using the numerically stable Joseph-form covariance update and robust NaN handling, it achieves mean position and heading errors of \SI{0.96}{\metre} and \SI{0.009}{\radian} respectively over a \SI{851}{\metre} path with $N = 12$ beacons.
+
+  \item \textbf{Kinematic analysis.}  Wheel velocities for Differential Drive $(\omega_R, \omega_L)$, Tricycle $(\omega_T, \alpha)$, and Omnidirectional $(\omega_1, \omega_2, \omega_3)$ drives were computed at every trajectory point using the appropriate inverse-kinematics relations and saved to the required comma-separated output files (\texttt{DD\_129466.txt}, \texttt{TRI\_129466.txt}, \texttt{OMNI\_129466.txt}).  The EKF results were saved to \texttt{loc\_129466.txt}.
+\end{enumerate}
+
+Compared to classic triangulation and trilateration, the EKF offers joint $(x, y, \theta)$ estimation, a principled treatment of measurement noise, graceful degradation when beacons are unavailable, and a formal uncertainty estimate through the covariance matrix -- all of which are essential for robust real-world deployment.
+
+\medskip\noindent
+\textbf{Future directions} include replacing the EKF with an Unscented Kalman Filter to handle stronger nonlinearities, adding a Particle Filter for multimodal uncertainty during initialisation, and integrating simultaneous localisation and mapping (SLAM) to relax the assumption of perfectly known beacon positions.
+
+\end{document}
