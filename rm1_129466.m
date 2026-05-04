@@ -71,8 +71,8 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
     Y_vec = [B.Y];  % Row vector of all Y coordinates
     beacons = [X_vec(:), Y_vec(:)];  % Nx2 matrix [x, y]
     
-    % Call planTrajectory function (generates trajectory through beacons)
-    trajectory = planTrajectory(beacons, Dt, V);
+    % Call planTrajectory_AI function (generates trajectory through beacons)
+    trajectory = planTrajectory_AI(beacons, Dt, V);
     
     fprintf('  Generated %d trajectory points\n', size(trajectory, 1));
 
@@ -106,7 +106,7 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
     [estimated_trajectory, P_history] = ekfLocalization(trajectory, N, Dt, Vn, Wn, V);
     
     % Save results to loc_129466.txt
-    saveLocalizationResults(estimated_trajectory, 'loc_129466.txt');
+    saveLocalizationResults_AI(estimated_trajectory, 'loc_129466.txt');
     
     % Display summary
     fprintf('\nLocalization Results:\n');
@@ -129,7 +129,7 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
     fprintf('Computing wheel velocities for DD, Tricycle, Omnidirectional...\n');
     [DD, TRI, OMNI] = computeKinematics(trajectory, r, L, Dt);
     
-    saveKinematicsResults(DD, TRI, OMNI, '129466');
+    saveKinematicsResults_AI(DD, TRI, OMNI, '129466');
     fprintf('  Saved DD_129466.txt, TRI_129466.txt, OMNI_129466.txt\n');
 
     % ============ MERGED VISUALIZATION ============

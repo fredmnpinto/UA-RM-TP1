@@ -1,4 +1,4 @@
-function saveLocalizationResults(estimated_trajectory, filename)
+function saveLocalizationResults_AI(estimated_trajectory, filename)
 %SAVELOCALIZATIONRESULTS Save EKF results to file
 %
 % Input:

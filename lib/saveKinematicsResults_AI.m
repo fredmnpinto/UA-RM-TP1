@@ -1,4 +1,4 @@
-function saveKinematicsResults(DD, TRI, OMNI, student_number)
+function saveKinematicsResults_AI(DD, TRI, OMNI, student_number)
 %SAVEKINEMATICSRESULTS Save wheel velocities to output files
 %
 % Inputs:

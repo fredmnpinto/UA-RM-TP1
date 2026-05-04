@@ -13,13 +13,16 @@ This project implements EKF (Extended Kalman Filter) localization for a mobile r
 ```
 ├── rm1_129466.m              # Main entry point
 ├── lib/                      # Library directory
-│   ├── planTrajectory.m      # Trajectory planning (waypoint generation)
-│   ├── ekfLocalization.m     # EKF localization loop
+│   ├── planTrajectory_AI.m      # Trajectory planning (AI-coded)
+│   ├── ekfLocalization.m    # EKF localization loop
 │   ├── EKF.m                # EKF class implementation
-│   ├── saveLocalizationResults.m # Save results to file
+│   ├── saveLocalizationResults_AI.m # Save results to file (AI-coded)
+│   ├── computeKinematics.m    # Compute wheel velocities (NOT renamed per user request)
+│   ├── saveKinematicsResults_AI.m # Save wheel velocities to file (AI-coded)
 │   ├── BeaconVisualization.m # Beacon detection visualization class
 │   └── DrawRobot.m          # Robot shape drawing function
 ├── BeaconDetection.p         # Provided P-code (beacon simulation)
+├── test_computeKinematics_AI.m # Kinematics test script (AI-coded)
 ├── test_ekf.m               # EKF test script
 ├── test_trajectory.m        # Trajectory test script
 └── AGENTS.md               # AI agent documentation
@@ -46,9 +49,9 @@ trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
 ## Output Files
 
 - `loc_129466.txt` - EKF localization results (x, y, theta)
-- `DD_129466.txt` - Dead reckoning results (future)
-- `TRI_129466.txt` - Triangulation results (future)
-- `OMNI_129466.txt` - Omnidirectional robot results (future)
+- `DD_129466.txt` - Differential drive wheel velocities (ωR, ωL)
+- `TRI_129466.txt` - Tricycle wheel velocity and steering (ωT, α)
+- `OMNI_129466.txt` - Omnidirectional wheel velocities (ω1, ω2, ω3)
 
 ## How to Run
 
@@ -69,13 +72,14 @@ The visualization shows:
 
 ## Key Components
 
-### Trajectory Planning (`lib/planTrajectory.m`)
-Generates a multi-waypoint trajectory with 2-3 random waypoints. Starts at a random point in the first quadrant (within 5×scale meters of origin). Uses linear interpolation with step size `Delta_d = Dt * V * 0.5` for smooth animation.
+### Trajectory Planning (`lib/planTrajectory_AI.m`)
+Generates trajectory starting at (0,0) passing through all beacons. Uses Hermite cubic interpolation (pchip) as required by assignment section 2.3. Control points evenly spaced in x, y values from pchip.
 
 ### EKF Localization (`lib/EKF.m`, `lib/ekfLocalization.m`)
 Implements Extended Kalman Filter with:
 - **Prediction step**: Propagates state using velocity commands
 - **Update step**: Corrects state using beacon measurements
+- **Uses estimated poses** (not ground truth) for control input
 
 State flow: `initial_estimate → predict() → prediction → update() → corrected_prediction`
 
@@ -107,8 +111,10 @@ This implementation addresses:
 - Trajectory starts at a random point in the first quadrant (within 5×scale meters of origin)
 - Position error is displayed in real-time during animation
 
-## Future Work
+## Output Files
 
-- Implement dead reckoning comparison (DD)
-- Add triangulation-based localization (TRI)
-- Extend to omnidirectional robot model (OMNI)
+- `loc_129466.txt` - EKF localization results (x, y, theta)
+- `DD_129466.txt` - Differential drive wheel velocities (ωR, ωL)
+- `TRI_129466.txt` - Tricycle wheel velocity and steering (ωT, α)
+- `OMNI_129466.txt` - Omnidirectional wheel velocities (ω1, ω2, ω3)
+

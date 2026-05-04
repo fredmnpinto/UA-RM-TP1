@@ -1,4 +1,4 @@
-function trajectory = planTrajectory(beacons, Dt, V)
+function trajectory = planTrajectory_AI(beacons, Dt, V)
 %PLANTRAJECTORY Generate trajectory starting at (0,0), passing through all beacons
 %               using Hermite cubic interpolation (pchip) as required by the assignment.
 %

@@ -1,4 +1,4 @@
-function test_computeKinematics()
+function test_computeKinematics_AI()
 %TEST_COMPUTEKINEMATICS Test computeKinematics function
 %
 % Tests all 3 kinematic models (DD, Tricycle, Omnidirectional)
