@@ -42,11 +42,17 @@ function [estimated_trajectory, P_history] = ekfLocalization(trajectory, N, Dt, 
     
     % EKF Main Loop
     for k = 1:(M-1)
-        % Get current ground truth pose (for control input calculation)
-        x_prev = trajectory(k, :)';
+        % In a real system, we only have access to our estimate, not ground truth
+        % Control input: where we THINK we are (estimate) -> where we WANT to go (desired)
+        
+        % x_prev: current estimated pose (x̂_k) - where we THINK we are
+        x_prev = ekf.initial_estimate;
+        
+        % x_curr: desired next pose (from path planning) - where we WANT to go
+        % (In a real system, this would come from the path planner)
         x_curr = trajectory(k+1, :)';
         
-        % Calculate control input from trajectory
+        % Calculate control input using estimated pose (not ground truth!)
         [v, omega, dt_actual] = ekf.computeControlInput(x_prev, x_curr, V);
         
         % ============ PREDICTION STEP ============
