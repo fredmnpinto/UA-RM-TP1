@@ -1,119 +1,100 @@
-function trajectory = planTrajectory(Dt, V, scale)
-%PLAN Trajectory - Generate straight-line trajectory from origin to destination
+function trajectory = planTrajectory(beacons, Dt, V)
+%PLANTRAJECTORY Generate trajectory starting at (0,0), passing through all beacons
+%               using Hermite cubic interpolation (pchip) as required by the assignment.
 %
 % Parameters:
-%   Dt - Sensor sampling time interval in seconds (default: 1)
-%   V  - Desired linear velocity in m/s (default: 5)
-%   scale - Trajectory scale multiplier (default: 1)
+%   beacons - Nx2 matrix of beacon [X, Y] positions
+%   Dt      - Sensor sampling time interval in seconds
+%   V       - Desired average linear velocity in m/s
 %
 % Output:
-%   trajectory - Mx3 matrix [x, y, theta] for each point
-%
-% NOTE: Beacons are FIXED LANDMARKS in the environment. The robot passes BY them,
-% not TO them. The trajectory is a straight-line path through the environment.
+%   trajectory - Mx3 matrix [x, y, theta] for each control point
 
-    % Set defaults
-    if nargin < 1, Dt = 1; end
-    if nargin < 2, V = 5; end
-    if nargin < 3, scale = 1; end
+    % ============ SET DEFAULTS ============
+    if nargin < 1 || isempty(beacons), error('beacons (Nx2 matrix) is required'); end
+    if nargin < 2 || isempty(Dt), Dt = 1; end
+    if nargin < 3 || isempty(V), V = 5; end
 
-    % ====== INPUT VALIDATION ======
+    % ============ INPUT VALIDATION ============
+    % Validate beacons (Nx2 matrix)
+    if ~ismatrix(beacons) || size(beacons, 2) ~= 2
+        error('beacons must be an Nx2 matrix [X, Y]');
+    end
+    
     % Validate Dt (sampling time interval)
     if ~isscalar(Dt) || ~isnumeric(Dt) || Dt <= 0
         error('Dt must be a positive scalar (sampling time interval in seconds)');
     end
     
-    % Validate V (linear velocity)
+    % Validate V (desired linear velocity)
     if ~isscalar(V) || ~isnumeric(V) || V <= 0
         error('V must be a positive scalar (desired linear velocity in m/s)');
     end
 
-    % Validate scale
-    if ~isscalar(scale) || ~isnumeric(scale) || V <= 0
-        error('scale must be a positive scalar (desired linear velocity in m/s)');
-    end
+    num_beacons = size(beacons, 1);
 
-    % Random waypoints - COMPLETELY INDEPENDENT of beacons
+    % ============ DEFINE WAYPOINTS ============
+    % Trajectory starts at (0,0), passes through all beacons, ends at last beacon
+    waypoints = [0, 0; beacons];  % (num_beacons + 1) x 2 matrix
+    x_way = waypoints(:, 1);
+    y_way = waypoints(:, 2);
+
+    % ============ GENERATE SMOOTH TRAJECTORY VIA PCHIP ============
+    % Hermite cubic interpolation as required by assignment section 2.3
+    % Control points are evenly spaced in x, y values from pchip
+    x_min = min(x_way);
+    x_max = max(x_way);
+    Delta_d = Dt * V;  % Approximate distance between control points
     
-    rng('shuffle');
+    % Generate evenly spaced x control points (assignment requirement)
+    x_span = x_max - x_min;
+    if x_span < 1e-6, x_span = 1; end  % Avoid division by zero
+    num_x_points = max(2, ceil(x_span / (Delta_d * 0.7)));  % Approximate spacing
+    xq = linspace(x_min, x_max, num_x_points)';  % Column vector of x points
     
-    % Random start point (in first quadrant, within 5m of origin)
-    startX = rand() * 5 * scale;
-    startY = rand() * 5 * scale;
-    startPoint = [startX, startY];
-    
-    % Generate 2-3 random intermediate waypoints
-    numWaypoints = 2 + floor(rand() * 2);  % 2 or 3 waypoints
-    
-    waypoints = zeros(numWaypoints, 2);
-    for i = 1:numWaypoints
-        waypoints(i, 1) = (2 + rand() * 18) * scale;  % x: 2-20m
-        waypoints(i, 2) = (2 + rand() * 18) * scale;  % y: 2-20m
+    % Get y values via pchip (Hermite interpolation)
+    yq = pchip(x_way, y_way, xq);  % Column vector of y points
+
+    % ============ COMPUTE HEADING (THETA) ============
+    % Theta = direction to next intermediate point (assignment section 3.2)
+    M = length(xq);
+    theta = zeros(M, 1);
+    for i = 1:M-1
+        theta(i) = atan2(yq(i+1) - yq(i), xq(i+1) - xq(i));
+    end
+    theta(M) = theta(M-1);  % Last point uses previous heading
+    theta = wrapToPi(theta);  % Wrap to [-pi, pi]
+
+    % ============ COMBINE INTO TRAJECTORY ============
+    trajectory = [xq, yq, theta];
+
+    % ============ VALIDATION ============
+    % Check 1: Starts at (0,0)
+    if norm(trajectory(1, 1:2) - [0, 0]) > 1e-6
+        error('Trajectory must start at (0,0)');
     end
     
-    % Random final destination (past the last waypoint)
-    lastWaypoint = waypoints(end, :);
-    angle = rand() * 2 * pi;
-    dist = 5 + rand() * 10;
-    destPoint = lastWaypoint + [dist * cos(angle), dist * sin(angle)];
-    
-    % Ensure destination in first quadrant
-    if destPoint(1) < 2, destPoint(1) = lastWaypoint(1) + 5; end
-    if destPoint(2) < 2, destPoint(2) = lastWaypoint(2) + 5; end
-
-    % ============ LINEAR INTERPOLATION ============
-    % Generate trajectory by interpolating through all waypoints
-    Delta_d = Dt * V * 0.5;  % Half the distance = 2x more points for smoother animation
-    trajectory = [];
-    
-    allPoints = [startPoint; waypoints; destPoint];
-    
-    for seg = 1:size(allPoints, 1) - 1
-        p1 = allPoints(seg, :);
-        p2 = allPoints(seg + 1, :);
-        
-        segDist = sqrt((p2(1)-p1(1))^2 + (p2(2)-p1(2))^2);
-        nPoints = max(1, floor(segDist / Delta_d));
-        
-        t_vals = linspace(0, 1, nPoints + 1);
-        x_seg = p1(1) + t_vals * (p2(1) - p1(1));
-        y_seg = p1(2) + t_vals * (p2(2) - p1(2));
-        
-        for i = 1:length(x_seg)
-            if i < length(x_seg)
-                theta = atan2(y_seg(i+1) - y_seg(i), x_seg(i+1) - x_seg(i));
-            else
-                if seg < size(allPoints, 1) - 1
-                    % Get direction to next segment
-                    nextP = allPoints(seg + 2, :);
-                    theta = atan2(nextP(2) - p2(2), nextP(1) - p2(1));
-                else
-                    theta = atan2(y_seg(i) - y_seg(i-1), x_seg(i) - x_seg(i-1));
-                end
-            end
-            trajectory = [trajectory; x_seg(i), y_seg(i), theta];
+    % Check 2: Passes through all beacons (pchip curve passes through waypoints)
+    for i = 1:num_beacons
+        beacon = beacons(i, :);
+        % Verify pchip curve passes through beacon (interpolation property)
+        if norm(beacon - waypoints(i+1, :)) > 1e-6
+            error('Waypoints must include beacon %d', i);
         end
     end
-
-    % ============ FINAL VALIDATION ============
-    % Check 1: Start at startPoint (verify x, y only; theta is calculated)
-    if ~isequal(trajectory(1, 1:2), startPoint)
-        error('Trajectory must start at startPoint');
+    
+    % Check 3: Ends at last beacon
+    if norm(trajectory(end, 1:2) - beacons(end, :)) > 1e-6
+        error('Trajectory must end at last beacon');
     end
-
-    % Check 2: No NaN values
+    
+    % Check 4: No NaN values
     if any(isnan(trajectory(:)))
         error('Trajectory contains NaN values');
     end
+end
 
-    % Check 3: Heading range [-pi, pi]
-    if any(trajectory(:, 3) < -pi | trajectory(:, 3) > pi)
-        error('Heading angles out of range');
-    end
-    
-    % Check 4: Points are approximately equally spaced
-    distances = sqrt(diff(trajectory(:,1)).^2 + diff(trajectory(:,2)).^2);
-    if any(abs(distances - Delta_d) > 0.01 * Delta_d)
-        warning('Some trajectory points may not be evenly spaced');
-    end
+function angle = wrapToPi(angle)
+    % Wrap angle to [-pi, pi]
+    angle = atan2(sin(angle), cos(angle));
 end

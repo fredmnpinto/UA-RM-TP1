@@ -5,10 +5,10 @@
 - **Student number**: 129466
 - **Main function file**: rm1_129466.m
 - **Output file naming convention**:
-  - `loc_129466.txt` - Localization results
-  - `DD_129466.txt` - Dead reckoning results
-  - `TRI_129466.txt` - Triangulation results
-  - `OMNI_129466.txt` - Omnidirectional robot results
+  - `loc_129466.txt` - EKF localization results
+  - `DD_129466.txt` - Differential drive wheel velocities (ωR, ωL)
+  - `TRI_129466.txt` - Tricycle wheel velocity and steering (ωT, α)
+  - `OMNI_129466.txt` - Omnidirectional wheel velocities (ω1, ω2, ω3)
 
 ## Project Files
 
@@ -16,9 +16,11 @@
 - `rm1_129466.m` - Main entry point with parameters (N, Dt, r, L, Vn, Wn, V)
 
 ### Trajectory Planning
-- `lib/planTrajectory.m` - Generates random multi-waypoint trajectory (independent of beacons)
-- Starts at random point in first quadrant (within 5×scale meters of origin)
-- Uses linear interpolation with Delta_d = Dt * V * 0.5 for smooth animation
+- `lib/planTrajectory.m` - Generates trajectory starting at (0,0) passing through all beacons
+- Uses Hermite cubic interpolation (pchip) as required by assignment section 2.3
+- Control points evenly spaced in x, y values from pchip
+- Function signature: trajectory = planTrajectory(beacons, Dt, V)
+- beacons = Nx2 matrix [X, Y] passed from rm1_129466.m after calling BeaconDetection(N)
 
 ### Beacon Simulation
 - `BeaconDetection.p` - Provided P-code function for beacon position and measurement simulation
@@ -103,7 +105,7 @@ Read: peter_corke_toolbox.md from line X (reading ~100 lines)
 ### Project Functions
 | Function | Type | Description |
 |----------|------|-------------|
-| lib/planTrajectory | Function | Linear interpolation trajectory with 2-3 random waypoints |
+| lib/planTrajectory | Function | Trajectory starting at (0,0) through beacons via pchip |
 | BeaconDetection | Function (.p) | Provided beacon simulation (positions + measurements) |
 | lib/BeaconVisualization | Class | Manages beacon detection visualization |
 | lib/EKF | Class | Extended Kalman Filter for localization |

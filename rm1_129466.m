@@ -63,10 +63,16 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
 
     % ============ PHASE 1: TRAJECTORY PLANNING ============
     fprintf('Phase 1: Generating trajectory\n');
-    fprintf('  N = Dt = %.2f s, V = %.2f m/s\n', Dt, V);
+    fprintf('  N = %d, Dt = %.2f s, V = %.2f m/s\n', N, Dt, V);
     
-    % Call planTrajectory function
-    trajectory = planTrajectory(Dt, V, 10);
+    % Get beacon positions (fixed landmarks in environment)
+    B = BeaconDetection(N);
+    X_vec = [B.X];  % Row vector of all X coordinates
+    Y_vec = [B.Y];  % Row vector of all Y coordinates
+    beacons = [X_vec(:), Y_vec(:)];  % Nx2 matrix [x, y]
+    
+    % Call planTrajectory function (generates trajectory through beacons)
+    trajectory = planTrajectory(beacons, Dt, V);
     
     fprintf('  Generated %d trajectory points\n', size(trajectory, 1));
 
@@ -86,16 +92,6 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
         fprintf('Last 5 points:\n');
         disp(trajectory(end-4:end, :));
     end
-
-    % ============ GET BEACON POSITIONS ============
-    % Get beacon positions (fixed landmarks in environment)
-    B = BeaconDetection(N);
-    
-    % Collect beacon X and Y coordinates from struct array
-    % B.X returns a comma-separated list, so we use [B.X] to collect into vector
-    X_vec = [B.X];  % Row vector of all X coordinates
-    Y_vec = [B.Y];  % Row vector of all Y coordinates
-    beacons = [X_vec(:), Y_vec(:)];  % Nx2 matrix [x, y]
 
     % ============ PHASE 2: EKF LOCALIZATION ============
     fprintf('\n==============================================\n');
