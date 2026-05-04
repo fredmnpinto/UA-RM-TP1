@@ -1,3 +1,7 @@
 # Temporary documentation files to help
 # keep AI results consistent.
 docs/specs
+
+# Keep these out of the repo due to
+# privacy concerns.
+docs/things_professor_said.md
