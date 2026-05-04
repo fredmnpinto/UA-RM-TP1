@@ -121,6 +121,17 @@ function trajectory = rm1_129466(N, Dt, r, L, Vn, Wn, V)
     fprintf('  Mean position error: %.4f m\n', mean(position_error));
     fprintf('  Max position error:  %.4f m\n', max(position_error));
 
+    % ============ PHASE 3: KINEMATIC MODELS ============
+    fprintf('\n==============================================\n');
+    fprintf('Phase 3: Kinematic Model Calculations\n');
+    fprintf('==============================================\n');
+    
+    fprintf('Computing wheel velocities for DD, Tricycle, Omnidirectional...\n');
+    [DD, TRI, OMNI] = computeKinematics(trajectory, r, L, Dt);
+    
+    saveKinematicsResults(DD, TRI, OMNI, '129466');
+    fprintf('  Saved DD_129466.txt, TRI_129466.txt, OMNI_129466.txt\n');
+
     % ============ MERGED VISUALIZATION ============
     fprintf('\nGenerating merged visualization...\n');
     
