@@ -34,7 +34,19 @@
   - State flow: `initial_estimate` → `predict()` → `prediction` → `update()` → `corrected_prediction`
   - Properties: `P_initial`, `P_prediction`, `P_corrected` (covariance matrices)
 - `lib/ekfLocalization.m` - Main EKF localization function (iterates through trajectory)
+  - Debug statements removed (clean version)
 - `lib/saveLocalizationResults.m` - Saves estimated trajectory to txt file
+
+### Kinematic Models (NEW - Task 1 Complete)
+- `lib/computeKinematics.m` - Computes wheel velocities for 3 robot models
+  - Differential Drive: ωR = (v + ω·L/2)/r, ωL = (v - ω·L/2)/r
+  - Tricycle: ωT = v/r, α = atan2(ω·L, v)
+  - Omnidirectional: Uses M matrix from localvels.m (class config)
+  - Last point set to 0 (robot stops)
+- `lib/saveKinematicsResults.m` - Saves wheel velocities to 3 output files
+  - `DD_nnnnnn.txt` (ωR, ωL)
+  - `TRI_nnnnnn.txt` (ωT, α)
+  - `OMNI_nnnnnn.txt` (ω1, ω2, ω3)
 
 ### Visualization
 - `lib/DrawRobot.m` - Draws robot shape (types: 1=DD, 2=tricycle, 3=omni)
@@ -109,8 +121,10 @@ Read: peter_corke_toolbox.md from line X (reading ~100 lines)
 | BeaconDetection | Function (.p) | Provided beacon simulation (positions + measurements) |
 | lib/BeaconVisualization | Class | Manages beacon detection visualization |
 | lib/EKF | Class | Extended Kalman Filter for localization |
-| lib/ekfLocalization | Function | Main EKF localization loop |
+| lib/ekfLocalization | Function | Main EKF localization loop (debug removed) |
 | lib/saveLocalizationResults | Function | Saves trajectory to txt file |
+| lib/computeKinematics | Function | Computes wheel velocities for 3 robot models |
+| lib/saveKinematicsResults | Function | Saves wheel velocities to 3 output files |
 | lib/DrawRobot | Function | Draws robot shape (provided) |
 
 ## Usage Pattern
@@ -137,6 +151,29 @@ bicycle = Bicycle(V, L);  % max linear velocity, wheelbase
 - Headers are formatted as `## FunctionName.ClassName` for class methods
 - Each function has usage examples in the documentation
 - Take notes with a grain of salt - this is converted documentation
+
+## Completed Tasks (as of 2026-05-04)
+
+### Task 1: Trajectory Planning ✅
+- `lib/planTrajectory.m` - Fixed to start at (0,0) and pass through all beacons
+- Uses Hermite cubic interpolation (`pchip`) as required by assignment section 2.3
+- Returns trajectory with evenly spaced x values from pchip
+- `rm1_129466.m` - Gets beacons via `BeaconDetection(N)` and passes to `planTrajectory()`
+
+### Task 2: Kinematic Model Calculations ✅
+- `lib/computeKinematics.m` - Computes wheel velocities for 3 robot models:
+  - Differential Drive: ωᵣ = (v + ω·L/2)/r, ωₗ = (v - ω·L/2)/r
+  - Tricycle: ωₜ = v/r, α = atan2(ω·L, v)
+  - Omnidirectional: Uses M matrix from `localvels.m` (case 3)
+- `lib/saveKinematicsResults.m` - Saves to 3 output files:
+  - `DD_129466.txt` (ωR, ωL)
+  - `TRI_129466.txt` (ωT, α)
+  - `OMNI_129466.txt` (ω1, ω2, ω3)
+- `rm1_129466.m` - Added Phase 3 to compute and save kinematic results
+
+### Other Changes
+- Removed debug `fprintf` statements from `lib/ekfLocalization.m`
+- Fixed bug in `lib/saveKinematicsResults.m` (undefined `fid` variable)
 
 ## MATLAB Animation Pattern
 
